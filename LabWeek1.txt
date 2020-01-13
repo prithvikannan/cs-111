@@ -1,0 +1,37 @@
+File Descriptors:
+    0: standard input (read only)
+    1: standard output (write only)
+    2: standard error (write only)
+
+
+Input/output redirection is accomplished by:
+    - opening the new input/output file
+    - closing the file descriptor (0, 1, 2) to be replaced
+    - duplicate the new input/output file to the (newly vacated) file descriptor to be replaced
+    - close the (now redundant) file descriptor on to which that file was originally opened
+    Input:
+        int ifd = open(newfile, O_RDONLY);
+        if (ifd >= 0) {
+            close(0); // closes existing std in 
+            dup(ifd); // puts ifd into fd0
+            close(ifd);
+        }
+    Output:
+        // 0222 is read, 0444 is write, 0666 is read/write;
+        int ofd = creat(newfile, 0666); // creat(newfile, 0666) = open(newfile, O_CREAT, 0666)
+        if (ofd >= 0) {
+            close(1); // closes existing std out 
+            dup(ofd); // puts ofd in fd1
+            close(ofd);
+        }
+
+Error Handling:
+    - errno class stores a number when an error occurs  
+    - strerr(errno) returns a description of the error
+    Sample code:
+        #include <errno.h>
+        int ifd = open(newfile, O_RDONLY)
+        if (ifd < 0) {
+            printf("Error %s\n", strerr(errno)) 
+        }
+
