@@ -5,16 +5,16 @@
 .SILENT:
 
 default:
-	gcc -g -o lab0 -Wall -Wextra project0.c
+	gcc -g -o lab0 -Wall -Wextra lab0.c
 
 clean:
 	rm -rf lab0 *.o *.txt *.tar.gz
 
 check: clean default
-	bash ./checkscript.sh
+	bash ./checker.sh
 
 dist: default
-	tar -czvf lab0-405110096.tar.gz project0.c README Makefile backtrace.PNG breakpoint.PNG
+	tar -czvf lab0-405110096.tar.gz lab0.c README Makefile backtrace.png breakpoint.png
 
 segfaultRun:
 	./lab0 --segfault --catch
