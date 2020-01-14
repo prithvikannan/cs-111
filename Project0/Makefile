@@ -1,31 +1,24 @@
+#NAME: Prithvi Kannan
+#EMAIL: prithvi.kannan@gmail.com
+#ID: 405110096
 
 .SILENT:
 
 default:
-	gcc -g -o project0 -Wall -Wextra project0.c
+	gcc -g -o lab0 -Wall -Wextra project0.c
 
 clean:
-	rm -rf project0 *.o *.txt *.tar.gz
+	rm -rf lab0 *.o *.txt *.tar.gz
 
-check: clean default successfulRun
+check: clean default
+	bash ./checkscript.sh
 
 dist: default
-	tar -czvf project0-420.tar.gz project0.c README Makefile backtrace.png breakpoint.png
-
-successfulRun:
-	echo "420" > in.txt
-	./project0 --input in.txt --output out.txt
-	if [[ $$? -ne 0 ]]; then \
-		echo "Incorrect exit code upon sucessfully getting through the program."; \
-	fi
-
-	diff in.txt out.txt
-	if [[ $$? -ne 0 ]]; then \
-		echo "in.txt does not match out.txt."; \
-	fi
+	tar -czvf lab0-405110096.tar.gz project0.c README Makefile backtrace.PNG breakpoint.PNG
 
 segfaultRun:
-	./project0 --segfault --catch
+	./lab0 --segfault --catch
+	echo $$?
 	if [[ $$? -ne 4 ]]; then \
 		echo "Incorrect exit code received for catching and handling segfault - should be 4" \
 	fi

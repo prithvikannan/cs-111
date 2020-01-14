@@ -1,3 +1,7 @@
+// NAME: Prithvi Kannan
+// EMAIL: prithvi.kannan@gmail.com
+// ID: 405110096
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,7 +20,7 @@ void createSegfault()
 
 void handler()
 {
-    fprintf(stderr, "Segmentation fault caught.\n");
+    fprintf(stderr, "Segmentaftion fault caught.\n");
     exit(4);
 }
 
