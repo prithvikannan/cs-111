@@ -24,3 +24,5 @@ Exit code 3:
 Exit code 4:
     - check that --segfault and --catch actually create a segfault
 
+Notes:
+    To keep my Makefile concise and readable, I have encapsulated the functionality of the 'make check' recipe into a shell script called checker.sh
