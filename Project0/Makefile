@@ -8,17 +8,10 @@ default:
 	gcc -g -o lab0 -Wall -Wextra lab0.c
 
 clean:
-	rm -rf lab0 *.o *.txt *.tar.gz
+	rm -rf lab0 *.tar.gz
 
 check: clean default
 	bash ./checker.sh
 
 dist: default
-	tar -czvf lab0-405110096.tar.gz lab0.c README Makefile backtrace.png breakpoint.png
-
-segfaultRun:
-	./lab0 --segfault --catch
-	echo $$?
-	if [[ $$? -ne 4 ]]; then \
-		echo "Incorrect exit code received for catching and handling segfault - should be 4" \
-	fi
+	tar -czvf lab0-405110096.tar.gz lab0.c README Makefile backtrace.png breakpoint.png checker.sh

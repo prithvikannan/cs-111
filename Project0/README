@@ -1,3 +1,26 @@
 NAME: Prithvi Kannan
 EMAIL: prithvi.kannan@gmail.com
 ID: 405110096
+
+The following files are included in the tarball:
+    lab0.c - C code for transcribing input to output 
+    backtrace.png - screenshot of gdb debugging session when looking at segfault backtrace
+    breakpoint.png - screenshot of gdb debugging session when setting a breakpoint before the segfault
+    Makefile - makefile to build executable, check functionality, clean up files, etc.
+    checker.sh - helper script called by 'make check' with smoke tests
+
+The smoke tests are grouped by the exit code expected:
+Exit code 0:
+    - checks the isolated functionality of the --input flag
+    - checks the isolated functionality of the --output flag
+    - verify that --input actually overwrites what comes in standard in
+    - verify that the contents of output matches the contents of input after runnning
+Exit code 1:
+    - make sure that an unknown flag is recognized as a bad flag
+Exit code 2:
+    - verify that a nonexistent input file is not readable
+Exit code 3:
+    - verify that an unwritable output file is not writable
+Exit code 4:
+    - check that --segfault and --catch actually create a segfault
+

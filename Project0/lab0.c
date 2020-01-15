@@ -5,7 +5,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -20,7 +19,7 @@ void createSegfault()
 
 void handler()
 {
-    fprintf(stderr, "Segmentaftion fault caught.\n");
+    fprintf(stderr, "Segmentation fault caught.\n");
     exit(4);
 }
 
@@ -28,8 +27,8 @@ int main(int argc, char **argv)
 {
     char *input = NULL;
     char *output = NULL;
-    int segfault = 0;
-    int catch = 0;
+    int hasSegfault = 0;
+    int hasCatch = 0;
 
     char param;
 
@@ -57,10 +56,10 @@ int main(int argc, char **argv)
             output = optarg;
             break;
         case 's':
-            segfault = 1;
+            hasSegfault = 1;
             break;
         case 'c':
-            catch = 1;
+            hasCatch = 1;
             break;
         default:
             fprintf(stderr, "Incorrect usage! Correct usage is in the form: project0 --input=filepath --output=filepath --segfault --catch");
@@ -101,12 +100,12 @@ int main(int argc, char **argv)
         }
     }
 
-    if (catch)
+    if (hasCatch)
     {
         signal(SIGSEGV, handler);
     }
 
-    if (segfault)
+    if (hasSegfault)
     {
         createSegfault();
     }
