@@ -1,0 +1,88 @@
+Process and Stack Frames
+    Procedure call creates a new stack frame 
+        Local variables
+        Save registers (PC, etc.)
+    CPU has stack support
+        Hardware solutions for push/pop
+
+Address Space - Stack 
+    Size depends on the program
+        Stack grows as program calls more procedure calls 
+        Can be recycled once call returns
+    OS manages process's stack 
+        Can be fixed sized or dynamically extended
+        Read/write and process private
+
+
+Process State
+    Registers (general, PC, processor status, stack/frame pointer)
+    OS resources
+        Open files, cwd, locks
+    Requires a data structure to hold this information
+    Some are not stored in process descriptor 
+        Execution state is on stack
+        Can be stored in supervisor-mode stack
+
+Process Descriptor  
+    Stores state, references to resources, information about support processes
+    Used for scheduling, security, allocation
+    Inserted into the process table (unique key-value pairs)
+
+Handling Processes 
+    Creating, Destroying, Running
+
+Creating new process
+    OS using a method to initialize
+        No initial state or resources (windows approach)
+    Requested by another process
+        Clone the calling process (unix approach)
+        Notion of parent/child relationship
+        
+Fork
+    Creates two processes with diff IDs but mostly same
+    Parent goes 'one way' and child goes 'the other'
+    Child process 
+        Own empty stack space
+        Shared code reference
+        Data starts out the same but may not stay the same...
+    Copy on write
+        Creating an entire new copy for the child is expensive
+        Only when a process writes to data, the copy is made
+        Lazy way of creating data segments
+        Done at fine granularity (by pages, not by copying the entire data segment)
+
+Exec 
+    For making an entirely new process
+    Used in conjunction with Fork call (can't be run by itself)
+    Changes the code section of a process and resets state
+
+Destroying a process
+    Can be killed by the OS 
+    Needs to reclaim memory, locks, and other resources
+    Inform other processes that this process is over
+    Remove from process table
+
+Running a process 
+    Ran by CPU (hardware)
+    # processes >> # cores
+    Scheduler regulates when and where processes are run
+    Limited Direct Execution   
+        Without OS intervention...  
+        Unless the program makes a system call (hits a trap) and transfers control to the OS
+        To optimize performance, enter the OS as seldom as possible
+
+Loading a processes 
+    Initialize hardware to clean state (process must get CPU in like-new condition)
+    Load registers
+    Init stack and stack pointer
+    Set up memory structures
+    Set PC 
+
+Exceptions
+    Sync exceptions 
+        Can be handled by the code or the OS (may ekill program)
+    Async exceptions (seg fault, abort, power failure)
+        Unpredictable so the code can't check for them
+        Try/catch blocks
+        Sometimes they are used for system calls
+        Hardware and OS catch exceptions and give control to OS
