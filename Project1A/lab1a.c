@@ -225,7 +225,7 @@ int main(int argc, char **argv)
             // wait for child thread to terminate
             int wstatus;
             waitpid(newPID, &wstatus, 0);
-            fprintf(stderr, "SHELL EXIT SIGNAL=%d STATUS=%d\n", WIFSIGNALED(wstatus), WEXITSTATUS(wstatus));
+            fprintf(stderr, "SHELL EXIT SIGNAL=%d STATUS=%d\r\n", WIFSIGNALED(wstatus), WEXITSTATUS(wstatus));
 
             atexit(restore);
             exit(0);
