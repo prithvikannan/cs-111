@@ -259,6 +259,8 @@ int main(int argc, char **argv)
             {
             case EOT:
                 exitLoop = 1;
+                write(STDOUT_FILENO, crlf, 2);
+                break;
             case CR:
             case LF:
                 write(STDOUT_FILENO, crlf, 2);
