@@ -116,7 +116,6 @@ int main(int argc, char **argv)
                 exit(1);
             }
 
-
             break;
 
         default:                                   // parent process
@@ -235,18 +234,41 @@ int main(int argc, char **argv)
     // if no shell flag
     else
     {
+        // char buf;
+        // while (read(STDIN_FILENO, &buf, 10) > 0 && buf != EOT)
+        // {
+        //     switch (buf)
+        //     {
+        //         // replace CR and LF with CRLF
+        //     case CR:
+        //     case LF:
+        //         write(STDOUT_FILENO, crlf, 2);
+        //         break;
+        //     default:
+        //         write(STDOUT_FILENO, &buf, 1);
+        //         break;
+        //     }
+        // }
         char buf;
-        while (read(STDIN_FILENO, &buf, 10) > 0 && buf != EOT)
+        while (read(STDIN_FILENO, &buf, 10) > 0)
         {
+            int exitLoop;
+            exitLoop = 0;
+
             switch (buf)
             {
-                // replace CR and LF with CRLF
+            case EOT:
+                exitLoop = 1;
             case CR:
             case LF:
                 write(STDOUT_FILENO, crlf, 2);
                 break;
             default:
                 write(STDOUT_FILENO, &buf, 1);
+                break;
+            }
+            if (exitLoop)
+            {
                 break;
             }
         }
