@@ -13,7 +13,7 @@
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <poll.h>
+#include <poll.h>   
 
 #define CR '\015'
 #define LF '\012'
@@ -29,6 +29,7 @@ const int WRITE_PORT = 1;
 
 char crlf[2] = {CR, LF};
 char ctrlD[2] = {'^', 'D'};
+char ctrlC[2] = {'^', 'C'};
 
 void restore(void)
 {
@@ -45,6 +46,11 @@ int main(int argc, char **argv)
             {"shell", 0, 0, 's'},
             {0, 0, 0, 0}};
 
+    if (argc != 1 && argc != 2)
+    {
+        fprintf(stderr, "Error: Incorrect usage! Correct usage is in the form: lab1a OR lab1a --shell");
+        exit(1);
+    }
     while (1)
     {
         param = getopt_long(argc, argv, "", options, NULL);
@@ -149,11 +155,15 @@ int main(int argc, char **argv)
                             // ^C from stdin
                             if (buf[i] == ESC)
                             {
+                                write(STDOUT_FILENO, &ctrlC, 2);
                                 kill(newPID, SIGINT);
                             }
-                            // end of file from stdin
+                            // ^D from stdin
                             else if (buf[i] == EOT)
                             {
+                                write(STDOUT_FILENO, &crlf, 2);
+                                write(STDOUT_FILENO, &ctrlD, 2);
+
                                 atEOT = 1;
                             }
                             // carriage return or line feed from stdin
@@ -225,7 +235,7 @@ int main(int argc, char **argv)
             // wait for child thread to terminate
             int wstatus;
             waitpid(newPID, &wstatus, 0);
-            fprintf(stderr, "SHELL EXIT SIGNAL=%d STATUS=%d\r\n", WIFSIGNALED(wstatus), WEXITSTATUS(wstatus));
+            fprintf(stderr, "SHELL EXIT SIGNAL=%d STATUS=%d\r\n", WTERMSIG(wstatus), WEXITSTATUS(wstatus));
 
             atexit(restore);
             exit(0);
@@ -246,8 +256,12 @@ int main(int argc, char **argv)
             {
                 switch (buf[a])
                 {
+                case ESC:
+                    write(STDOUT_FILENO, &ctrlC, 2);
+                    break;
                 case EOT:
                     exitLoop = 1;
+                    write(STDOUT_FILENO, &crlf, 2);
                     write(STDOUT_FILENO, &ctrlD, 2);
                     break;
                 case CR:

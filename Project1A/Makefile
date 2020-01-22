@@ -10,10 +10,5 @@ default:
 clean:
 	rm -rf lab1a *.tar.gz
 
-check: clean default
-	# signal=1 for ^C
-	# signal=0 for ^D 
-	# echo hello in bash
-
 dist: default
 	tar -czvf lab1a-405110096.tar.gz lab1a.c README Makefile
