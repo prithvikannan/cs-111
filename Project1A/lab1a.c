@@ -28,6 +28,7 @@ const int READ_PORT = 0;
 const int WRITE_PORT = 1;
 
 char crlf[2] = {CR, LF};
+char ctrlD[2] = {'^', 'D'};
 
 void restore(void)
 {
@@ -234,40 +235,34 @@ int main(int argc, char **argv)
     // if no shell flag
     else
     {
-        // char buf;
-        // while (read(STDIN_FILENO, &buf, 10) > 0 && buf != EOT)
-        // {
-        //     switch (buf)
-        //     {
-        //         // replace CR and LF with CRLF
-        //     case CR:
-        //     case LF:
-        //         write(STDOUT_FILENO, crlf, 2);
-        //         break;
-        //     default:
-        //         write(STDOUT_FILENO, &buf, 1);
-        //         break;
-        //     }
-        // }
-        char buf;
-        while (read(STDIN_FILENO, &buf, 10) > 0)
+        char buf[256];
+        int amountRead;
+        int exitLoop;
+        exitLoop = 0;
+        while ((amountRead = read(STDIN_FILENO, buf, 256)) > 0)
         {
-            int exitLoop;
-            exitLoop = 0;
-
-            switch (buf)
+            int a = 0;
+            while (a < amountRead)
             {
-            case EOT:
-                exitLoop = 1;
-                write(STDOUT_FILENO, crlf, 2);
-                break;
-            case CR:
-            case LF:
-                write(STDOUT_FILENO, crlf, 2);
-                break;
-            default:
-                write(STDOUT_FILENO, &buf, 1);
-                break;
+                switch (buf[a])
+                {
+                case EOT:
+                    exitLoop = 1;
+                    write(STDOUT_FILENO, &ctrlD, 2);
+                    break;
+                case CR:
+                case LF:
+                    write(STDOUT_FILENO, crlf, 2);
+                    break;
+                default:
+                    write(STDOUT_FILENO, &buf[a], 1);
+                    break;
+                }
+                a++;
+                if (exitLoop)
+                {
+                    break;
+                }
             }
             if (exitLoop)
             {

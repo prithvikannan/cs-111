@@ -1,3 +1,10 @@
 NAME: Prithvi Kannan
 EMAIL: prithvi.kannan@gmail.com
 ID: 405110096
+
+Project 1A
+Terminal I/O and Inter-Process Communication
+
+In this project, I built a multi-process telnet-like client and server with the following features:
+Character-at-a-time, full duplex terminal I/O
+Polled I/O and passing input and output between two processes
