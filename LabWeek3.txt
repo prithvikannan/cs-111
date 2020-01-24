@@ -1,0 +1,41 @@
+Server side
+    socket: one end of a connection, returns a file descriptor    
+        int socket(int domain, int type, int protocol) -> socket(AF_INET, SOCK_STREAM, 0)
+    bind: attaches the socket to a port (integer)
+        int bind(fd, struct sockaddr *addr, socklen_t *addrlen)
+    listen: ready for communications
+    accept: creates a new file descriptor for each connection (for read/write)
+        int accept(fd, struct sockaddr *addr, socklen_t *addrlen)
+        returns the fd, *addr/addrlen and pass by reference vars to store info sent by the client 
+    shutdown(int socket, int how) -> shutdown(socket, SHUT_RDWR)
+
+Client side
+    socket: creates other end of a connection
+    no need to bind 
+    connect: looks for process on server at a port and connects
+        int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
+        change endianness
+        intialize to 0 with bzero() in in_addr struct
+    change termios on this side
+    gethostbyname(localhost) will return a struct, no port in there since its passed as input
+        returns as a string so use atoi
+    pass ^C and ^D to server to handle
+
+
+Using pipe vs socket
+    pipe is used for communications across a computer, returns 2 fd
+    socket used for communications between computers, returns 1 fd, requires knowing address
+
+
+Compressed communications
+    ascii requires 7+1 bits
+    advantage: reduces the amount of space data takes so bandwith is reduced
+    disadvantage: processing on both ends
+    if only 1 char sent, nothing to compress but still need to send overhead info (tree)
+    large savings with compression for shell output of ls (example)
+
+zlib
+    include zlib.h 
+    add flag when compiling
+    need to compress/decompress on both sides of socket channel
+
