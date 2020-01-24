@@ -86,3 +86,43 @@ Exceptions
         Try/catch blocks
         Sometimes they are used for system calls
         Hardware and OS catch exceptions and give control to OS
+
+Using Traps for system calls   
+    Priviledged instructions for system calls
+    Prepare args for the sys call
+    Linker will replace the original system call instruction with a trap
+    Send the particular system call code to the OS
+    Return back to instruction after the sys call
+
+System Call Trap Gates
+    Trap goes to trap vector table, where PS/PC are pushed onto the stack 
+    Trap handler then redirects to the system call dispatch table 
+    Dispatch table then goes to the 2nd level handler where the system call is impelemented
+    When 2nd level handler returns, program returns to user mode, registers are restored
+
+Stacking and Unstacking System calls
+    Two stacks: one for user mode, one for kernel mode
+    System calls use the kernel mode stack (contain return address to user mode, etc)
+
+Blocked Process 
+    OS maintains which processes are Blocked
+    Could be waiting for I/O
+    Once resource is available, scheduler/resource manager can mark the process as unblocked
+    Blocking is needed for the schedule to know to wait    
+
+Process Queue
+    Data structure created by scheduler to determine the order to run processes 
+    All processes in queue are in 'ready' state 
+
+Scheduling Goals (relative priority varies depending on use case)
+    Throughput - as much work as possible (for servers)
+    Average wait time - interactiveness (for smartphones)
+    Fairness - minimize worst case time (for multi-users)
+    Priority goals - certain processes are more important (for different groups)
+    Real time - items have deadlines to be met (niche case ie missile defense)
+
+Scheduling: Policy and Mechanism
+    Policy is the ideas of how the OS should act 
+    Mechanism is how the OS accomplishes the desired policy 
+    Separation of policy and mechanism makes it easier to change just one
+
