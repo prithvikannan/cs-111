@@ -126,3 +126,52 @@ Scheduling: Policy and Mechanism
     Mechanism is how the OS accomplishes the desired policy 
     Separation of policy and mechanism makes it easier to change just one
 
+Why don't we get ideal Throughput   
+    Overhead to switch (ie save registers, switch)
+    Scheduler takes time to dispatch (super linear??)
+
+Response time exploding
+    Systems have finite limits (queue size)
+    Graceful degradation
+        When system overloads, should continue to work but slightly worse
+    
+Real time schedule
+    Certain taks need to happen at particular times
+    Hard real time schedulers
+        System fails if the deadline is not met
+        Requires very careful analysis, cannot be dynamic
+    Soft deadlines  
+        Okay missing deadline, but goal is to meet 
+        Different classes of deadlines (some more important than others)
+        Can be dynamic 
+    If deadlines are missed...
+        Drop the job
+        System may fall behind
+    
+Preemptive scheduling
+    Requires a clock if programs don't relinquish control 
+    Clock generates an interrupt at a fixed time interval 
+
+
+Costs of Context switch 
+    Entering the OS - Interrupt, save register, call scheduler
+    Time for scheduler to decide which work to run 
+    Switch stack and address spaces to new process
+    Lose instruction and data caches
+
+Multi-Level Feedback Queue
+    Create multiple ready queues
+        Short time tasks finish quickly (small time slices) -> improve interaction
+        Long time tasks take longer (large time slices) -> becomes more like non-preemptive system, more efficient
+    Deciding which processes go in which queues
+        Start all processes in short time queue
+        Move to longer queue if too many time slice ends
+        Move to back to short time queue if end before time slice
+    Real time queue doesn't use preemptive scheduling
+    Dynamic and automatic adjustment based on job behavior
+
+Priority scheduling Linux
+    "nice" value
+    Cannot raise priority by normal user, need to be sudo
+
+
