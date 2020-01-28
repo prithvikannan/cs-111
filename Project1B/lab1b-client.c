@@ -11,6 +11,8 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <poll.h>
+#include <zlib.h>
+#include <stdlib.h>
 
 #define CR '\015'
 #define LF '\012'
@@ -19,6 +21,15 @@
 
 struct termios original_mode;
 char crlf[2] = {CR, LF};
+char newline = '\n';
+
+char sending_prefix[20] = "SENT ";
+char sending_end[20] = " bytes: ";
+char receiving_prefix[20] = "RECEIVED ";
+char receiving_end[20] = " bytes: ";
+
+z_stream toServer;
+z_stream toClient;
 
 void restore(void)
 {
@@ -27,7 +38,7 @@ void restore(void)
 
 int main(int argc, char *argv[])
 {
-    int sockfd, portno, n;
+    int sockfd, portno, logfd, n;
 
     struct sockaddr_in serv_addr;
     struct hostent *server;
@@ -36,6 +47,7 @@ int main(int argc, char *argv[])
 
     int param;
     char *filename = NULL;
+    int log = 0;
     int compress = 0;
     struct option options[] =
         {
@@ -62,10 +74,33 @@ int main(int argc, char *argv[])
             portno = atoi(optarg);
             break;
         case 'l':
+            log = 1;
             filename = optarg;
+            if ((logfd = creat(filename, 0666)) == -1)
+            {
+                fprintf(stderr, "Failure to create/write to file.\n");
+                exit(1);
+            }
             break;
         case 'c':
             compress = 1;
+            toClient.zalloc = Z_NULL;
+            toClient.zfree = Z_NULL;
+            toClient.opaque = Z_NULL;
+            toServer.zalloc = Z_NULL;
+            toServer.zfree = Z_NULL;
+            toServer.opaque = Z_NULL;
+
+            if (inflateInit(&toClient) != Z_OK)
+            {
+                fprintf(stderr, "Error: unable to inflate client.\n");
+                exit(1);
+            }
+            if (deflateInit(&toServer, Z_DEFAULT_COMPRESSION) != Z_OK)
+            {
+                fprintf(stderr, "Error: unable to deflate client.\n");
+                exit(1);
+            }
             break;
         default:
             fprintf(stderr, "Error: Incorrect usage! Correct usage is in the form: lab1a OR lab1a --shell");
@@ -140,7 +175,36 @@ int main(int argc, char *argv[])
                         write(STDOUT_FILENO, (input + i), 1);
                     }
                 }
-                write(sockfd, input, num);
+                if (compress)
+                {
+                    char compression_buf[256];
+                    toServer.avail_in = num;
+                    toServer.next_in = (unsigned char *)input;
+                    toServer.avail_out = 256;
+                    toServer.next_out = (unsigned char *)compression_buf;
+
+                    do
+                    {
+                        deflate(&toServer, Z_SYNC_FLUSH);
+                    } while (toServer.avail_in > 0);
+
+                    write(sockfd, compression_buf, 256 - toServer.avail_out);
+                }
+                else
+                {
+                    if (log)
+                    {
+                        char buffer[50];
+                        char bytes[20];
+                        char text[20];
+                        sprintf(bytes, "%d", num);
+                        sprintf(buffer, "SENT %s bytes: ", bytes);
+                        write(logfd, buffer, 14 + num);
+                        sprintf((buffer + 13 + num), "%s\n", input);
+                        write(logfd, buffer, 14 + num + num);
+                    }
+                    write(sockfd, input, num);
+                }
             }
             else if (revents_stdin == POLLERR)
             {
@@ -156,7 +220,40 @@ int main(int argc, char *argv[])
                 {
                     break;
                 }
-                write(STDOUT_FILENO, input, num);
+                if (compress)
+                {
+                    char compression_buf[1024];
+                    toClient.avail_in = num;
+                    toClient.next_in = (unsigned char *)input;
+                    toClient.avail_out = 1024;
+                    toClient.next_out = (unsigned char *)compression_buf;
+
+                    do
+                    {
+                        inflate(&toClient, Z_SYNC_FLUSH);
+                    } while (toClient.avail_in > 0);
+
+                    write(STDOUT_FILENO, compression_buf, 1024 - toClient.avail_out);
+                }
+                else
+                {
+                    write(STDOUT_FILENO, input, num);
+                }
+                if (log)
+                {
+                    // char buffer[50];
+                    char bytes[20];
+                    sprintf(bytes, "%d", num);
+                    // sprintf(response, "%d", )
+                    // sprintf(buffer, "RECIEVED %s bytes: ", bytes);
+                    // sprintf((buffer + 17 + num), "%s\n", input);
+                    // write(logfd, buffer, 18 + num + num);
+                    write(logfd, receiving_prefix, strlen(receiving_prefix));
+                    write(logfd, bytes, strlen(bytes));
+                    write(logfd, receiving_end, strlen(receiving_end));
+                    write(logfd, input, num);
+                    write(logfd, &newline, 1);
+                }
             }
             else if (revents_socket & POLLERR || revents_socket & POLLHUP)
             { //polling error

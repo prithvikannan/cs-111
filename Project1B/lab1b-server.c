@@ -10,12 +10,17 @@
 #include <netinet/in.h>
 #include <getopt.h>
 #include <sys/wait.h>
-#include <poll.h>   
+#include <poll.h>
+#include <zlib.h>
+#include <stdlib.h>
 
 #define CR '\015'
 #define LF '\012'
 #define EOT '\004'
 #define ESC '\003'
+
+z_stream toServer;
+z_stream toClient;
 
 int pipe_parentToChild[2];
 int pipe_childToParent[2];
@@ -24,13 +29,13 @@ const int READ_PORT = 0;
 const int WRITE_PORT = 1;
 int sockfd, newsockfd;
 char crlf[2] = {CR, LF};
-
 void dostuff(int); /* function prototype */
 
 int main(int argc, char *argv[])
 {
 
     int portno, clilen;
+    int compress = 0;
     char buffer[256];
     struct sockaddr_in serv_addr, cli_addr;
     int n;
@@ -39,19 +44,40 @@ int main(int argc, char *argv[])
     struct option options[] =
         {
             {"port", 1, 0, 'p'},
+            {"compress", 0, 0, 'c'},
             {0, 0, 0, 0}};
 
-    if (argc != 2)
-    {
-        fprintf(stderr, "Error: Incorrect usage! Correct usage is in the form: lab1a OR lab1a --shell");
-        exit(1);
-    }
+    // if (argc != 2)
+    // {
+    //     fprintf(stderr, "Error: Incorrect usage! Correct usage is in the form: lab1a OR lab1a --shell");
+    //     exit(1);
+    // }
 
     param = getopt_long(argc, argv, "", options, NULL);
     switch (param)
     {
     case 'p':
         portno = atoi(optarg);
+        break;
+    case 'c':
+        compress = 1;
+        toClient.zalloc = Z_NULL;
+        toClient.zfree = Z_NULL;
+        toClient.opaque = Z_NULL;
+        toServer.zalloc = Z_NULL;
+        toServer.zfree = Z_NULL;
+        toServer.opaque = Z_NULL;
+
+        if (inflateInit(&toClient) != Z_OK)
+        {
+            fprintf(stderr, "Error: unable to inflate client.\n");
+            exit(1);
+        }
+        if (deflateInit(&toServer, Z_DEFAULT_COMPRESSION) != Z_OK)
+        {
+            fprintf(stderr, "Error: unable to deflate client.\n");
+            exit(1);
+        }
         break;
     default:
         fprintf(stderr, "Error: Incorrect usage! Correct usage is in the form: lab1a OR lab1a --shell");
@@ -141,31 +167,75 @@ void dostuff(int sock)
                     char buf[256];
                     int num = read(newsockfd, &buf, 256);
                     i = 0;
-                    while (i < num)
+                    if (compress)
                     {
-                        // ^C
-                        if (buf[i] == ESC)
-                        {
-                            kill(newPID, SIGINT);
-                        }
-                        // ^D
-                        else if (buf[i] == EOT)
-                        {
-                            atEOT = 1;
-                        }
-                        // carriage return or line feed from stdin
-                        else if (buf[i] == CR || buf[i] == LF)
-                        {
-                            char lf = LF;
-                            write(pipe_parentToChild[WRITE_PORT], &lf, 1);
-                        }
-                        // regular char from stdn
-                        else
-                        {
-                            write(pipe_parentToChild[WRITE_PORT], (buf + i), 1);
-                        }
+                        //decompress
+                        char compression_buf[1024];
+                        toServer.avail_in = num;
+                        toServer.next_in = (unsigned char *)buf;
+                        toServer.avail_out = 1024;
+                        toServer.next_out = (unsigned char *)compression_buf;
 
-                        i++;
+                        do
+                        {
+                            inflate(&toServer, Z_SYNC_FLUSH);
+                        } while (toServer.avail_in > 0);
+
+                        while (i < (unsigned int)i < 1024 - toServer.avail_out)
+                        {
+                            // ^C
+                            if (compression_buf[i] == ESC)
+                            {
+                                kill(newPID, SIGINT);
+                            }
+                            // ^D
+                            else if (compression_buf[i] == EOT)
+                            {
+                                atEOT = 1;
+                            }
+                            // carriage return or line feed from stdin
+                            else if (compression_buf[i] == CR || compression_buf[i] == LF)
+                            {
+                                char lf = LF;
+                                write(pipe_parentToChild[WRITE_PORT], &lf, 1);
+                            }
+                            // regular char from stdn
+                            else
+                            {
+                                write(pipe_parentToChild[WRITE_PORT], (compression_buf + i), 1);
+                            }
+
+                            i++;
+                        }
+                    }
+                    else
+                    {
+                        while (i < num)
+                        {
+                            // ^C
+                            if (buf[i] == ESC)
+                            {
+                                kill(newPID, SIGINT);
+                            }
+                            // ^D
+                            else if (buf[i] == EOT)
+                            {
+                                atEOT = 1;
+                            }
+                            // carriage return or line feed from stdin
+                            else if (buf[i] == CR || buf[i] == LF)
+                            {
+                                char lf = LF;
+                                write(pipe_parentToChild[WRITE_PORT], &lf, 1);
+                            }
+                            // regular char from stdn
+                            else
+                            {
+                                write(pipe_parentToChild[WRITE_PORT], (buf + i), 1);
+                            }
+
+                            i++;
+                        }
                     }
                 }
                 if (socket_revents == POLLERR || socket_revents == POLLHUP)
@@ -193,8 +263,43 @@ void dostuff(int sock)
                         // line feed from shell
                         else if (buf[i] == LF)
                         {
-                            write(newsockfd, (buf + j), count);
-                            write(newsockfd, crlf, 2);
+                            if (compress)
+                            {
+                                //compress
+                                char compression_buf[256];
+                                toClient.avail_in = count;
+                                toClient.next_in = (unsigned char *)(buf + j);
+                                toClient.avail_out = 256;
+                                toClient.next_out = (unsigned char *)compression_buf;
+
+                                do
+                                {
+                                    deflate(&toClient, Z_SYNC_FLUSH);
+                                } while (toClient.avail_in > 0);
+
+                                write(newsockfd, compression_buf, 256 - toClient.avail_out);
+
+                                //compress crlf
+                                char compression_buf2[256];
+                                char crlf_copy[2] = {CR, LF};
+                                toClient.avail_in = 2;
+                                toClient.next_in = (unsigned char *)(crlf_copy);
+                                toClient.avail_out = 256;
+                                toClient.next_out = (unsigned char *)compression_buf2;
+
+                                do
+                                {
+                                    deflate(&toClient, Z_SYNC_FLUSH);
+                                } while (toClient.avail_in > 0);
+
+                                write(newsockfd, compression_buf2, 256 - toClient.avail_out);
+                            }
+                            else
+                            {
+                                write(newsockfd, (buf + j), count);
+                                write(newsockfd, crlf, 2);
+                            }
+
                             j += count + 1;
                             count = 0;
                             i++;
