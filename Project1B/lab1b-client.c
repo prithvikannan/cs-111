@@ -193,49 +193,56 @@ int main(int argc, char *argv[])
 
 			if (revents_stdin == POLLIN)
 			{
-				char input[256];
-				int num = read(STDIN_FILENO, &input, 256);
+				char buf[256];
+				int num = read(STDIN_FILENO, &buf, 256);
 				i = 0;
 				while (i < num)
 				{
-					if (input[i] == CR || input[i] == LF)
-					{
-						write(STDOUT_FILENO, crlf, 2);
-					}
-					else
-					{
-						write(STDOUT_FILENO, (input + i), 1);
+					switch(buf[i]) {
+						case CR:
+						case LF:
+							write(STDOUT_FILENO, crlf, 2);
+							break;
+						case ESC:
+							write(STDOUT_FILENO, "^C\r\n", 4);
+							break;
+						case EOT:
+							write(STDOUT_FILENO, "^D\r\n", 4);
+							break;
+						default:
+							write(STDOUT_FILENO, (buf + i), 1);
+							break;
 					}
 					i++;
 				}
 
 				if (compress)
 				{
-					char compression_buf[256];
+					char bufCompress[256];
 					toServer.avail_in = num;
-					toServer.next_in = (unsigned char *)input;
+					toServer.next_in = (unsigned char *)buf;
 					toServer.avail_out = 256;
-					toServer.next_out = (unsigned char *)compression_buf;
+					toServer.next_out = (unsigned char *)bufCompress;
 
 					do
 					{
 						deflate(&toServer, Z_SYNC_FLUSH);
 					} while (toServer.avail_in > 0);
 
-					write(sockfd, compression_buf, 256 - toServer.avail_out);
+					write(sockfd, bufCompress, 256 - toServer.avail_out);
 
 					if (log)
 					{
-						writeToLog(1, 1, compression_buf, 0);
+						writeToLog(1, 1, bufCompress, 0);
 					}
 				}
 				else
 				{
-					write(sockfd, input, num);
+					write(sockfd, buf, num);
 
 					if (log)
 					{
-						writeToLog(0, 1, input, num);
+						writeToLog(0, 1, buf, num);
 					}
 				}
 			}
@@ -247,8 +254,8 @@ int main(int argc, char *argv[])
 
 			if (revents_socket == POLLIN)
 			{
-				char input[256];
-				int num = read(sockfd, &input, 256);
+				char buf[256];
+				int num = read(sockfd, &buf, 256);
 				if (num == 0)
 				{
 					break;
@@ -256,27 +263,27 @@ int main(int argc, char *argv[])
 
 				if (compress)
 				{
-					char compression_buf[1024];
+					char bufCompress[1024];
 					toClient.avail_in = num;
-					toClient.next_in = (unsigned char *)input;
+					toClient.next_in = (unsigned char *)buf;
 					toClient.avail_out = 1024;
-					toClient.next_out = (unsigned char *)compression_buf;
+					toClient.next_out = (unsigned char *)bufCompress;
 
 					do
 					{
 						inflate(&toClient, Z_SYNC_FLUSH);
 					} while (toClient.avail_in > 0);
 
-					write(STDOUT_FILENO, compression_buf, 1024 - toClient.avail_out);
+					write(STDOUT_FILENO, bufCompress, 1024 - toClient.avail_out);
 				}
 				else
 				{
-					write(STDOUT_FILENO, input, num);
+					write(STDOUT_FILENO, buf, num);
 				}
 
 				if (log)
 				{
-					writeToLog(0, 0, input, num);
+					writeToLog(0, 0, buf, num);
 				}
 			}
 			else if (revents_socket & POLLERR || revents_socket & POLLHUP)

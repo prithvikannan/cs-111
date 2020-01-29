@@ -45,11 +45,9 @@ void handle_character(char *buf, int i, int* atEOT) {
     switch(buf[i]) 
     {
         case ESC:
-            write(sockfd, "^C", 2);
             kill(newPID, SIGINT);
             break;
         case EOT:
-            write(sockfd, "^D", 2);
             *(atEOT) = 1;
             break;
         case CR:
