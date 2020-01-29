@@ -24,10 +24,10 @@
 #include <string.h>
 #include <zlib.h>
 
-#define CR '\015'  //carriage return
-#define LF '\012'  //line feed
-#define EOT '\004' //^D (End of transmission)
-#define ETX '\003' //^C (End of text)
+#define CR '\015'
+#define LF '\012'
+#define EOT '\004'
+#define ESC '\003'
 
 z_stream toServer;
 z_stream toClient;
@@ -39,11 +39,32 @@ const int READ_PORT = 0;
 const int WRITE_PORT = 1;
 int sockfd, newsockfd;
 char crlf[2] = {CR, LF};
+char lf = LF;
 
+void handle_character(char *buf, int i, int* atEOT) {
+    switch(buf[i]) 
+    {
+        case ESC:
+            write(sockfd, "^C", 2);
+            kill(newPID, SIGINT);
+            break;
+        case EOT:
+            write(sockfd, "^D", 2);
+            *(atEOT) = 1;
+            break;
+        case CR:
+        case LF:
+            write(pipe_parentToChild[WRITE_PORT], &lf, 1);
+            break;
+        default:
+            write(pipe_parentToChild[WRITE_PORT], (buf + i), 1);
+            break;
+    }
+}
 void handle_sigpipe()
 {
-    close(pipe_parentToChild[1]);
-    close(pipe_childToParent[0]);
+    close(pipe_parentToChild[WRITE_PORT]);
+    close(pipe_childToParent[READ_PORT]);
     kill(newPID, SIGKILL);
     int status;
     waitpid(newPID, &status, 0);
@@ -63,7 +84,6 @@ int main(int argc, char *argv[])
 
     int portno = 0;
     int compress = 0;
-    int port_flag = 0;
 
     int param;
     while (1)
@@ -77,7 +97,6 @@ int main(int argc, char *argv[])
         {
         case 'p':
             portno = atoi(optarg);
-            port_flag = 1;
             break;
 
         case 'c':
@@ -92,28 +111,21 @@ int main(int argc, char *argv[])
 
             if (deflateInit(&toClient, Z_DEFAULT_COMPRESSION) != Z_OK)
             {
-                fprintf(stderr, "Failure to deflateInit on client side.\n");
+				fprintf(stderr, "Error: can't deflate on client side.\n\r");
                 exit(1);
             }
             if (inflateInit(&toServer) != Z_OK)
             {
-                fprintf(stderr, "Failure to inflateInit on client side.\n");
+				fprintf(stderr, "Error: can't inflate on client side.\n\r");
                 exit(1);
             }
-
             break;
 
         default:
-            fprintf(stderr, "Error in arguments.\n");
+			fprintf(stderr, "Error: expected usage is lab1b-server --port=port with optional --compress.\n\r");
             exit(1);
             break;
         }
-    }
-
-    if (!port_flag)
-    {
-        fprintf(stderr, "--port= option is mandatory.\n");
-        exit(1);
     }
 
     /* Create a socket */
@@ -124,7 +136,7 @@ int main(int argc, char *argv[])
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
     {
-        fprintf(stderr, "ERROR opening socket");
+		fprintf(stderr, "Error: can't open socket\n\r");
         exit(1);
     }
     bzero((char *)&serv_addr, sizeof(serv_addr));
@@ -134,7 +146,7 @@ int main(int argc, char *argv[])
     if (bind(sockfd, (struct sockaddr *)&serv_addr,
              sizeof(serv_addr)) < 0)
     {
-        fprintf(stderr, "ERROR on binding");
+		fprintf(stderr, "Error: can't bind socket\n\r");
         exit(1);
     }
     listen(sockfd, 5);
@@ -142,14 +154,14 @@ int main(int argc, char *argv[])
     newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &clilen);
     if (newsockfd < 0)
     {
-        fprintf(stderr, "ERROR on accept");
+		fprintf(stderr, "Error: unable to accept\n\r");
         exit(1);
     }
 
     //create pipes
     if (pipe(pipe_parentToChild) != 0 || pipe(pipe_childToParent) != 0)
     {
-        fprintf(stderr, "Error: Failed to pipes between terminal and shell.\n");
+		fprintf(stderr, "Error: failed to make pipes\n\r");
         exit(1);
     }
 
@@ -160,7 +172,7 @@ int main(int argc, char *argv[])
     switch (newPID)
     {
     case -1: // bad PID
-        fprintf(stderr, "Error: Unable to fork process.\n");
+		fprintf(stderr, "Error: unable to fork\n\r");
         exit(1);
 
     case 0:                                    // child process
@@ -180,18 +192,18 @@ int main(int argc, char *argv[])
         args[1] = NULL;
         if (execvp(name, args) == -1)
         {
-            fprintf(stderr, "Error: Unable to execute shell.\n");
+		fprintf(stderr, "Error: can't execute shell\n\r");
             exit(1);
         }
         break;
 
     default:
-        close(pipe_parentToChild[0]); //read end from parent to child
-        close(pipe_childToParent[1]); //write end from child to parent
+        close(pipe_parentToChild[READ_PORT]); //read end from parent to child
+        close(pipe_childToParent[WRITE_PORT]); //write end from child to parent
 
         struct pollfd file_descriptors[] = {
             {newsockfd, POLLIN, 0},            //socket
-            {pipe_childToParent[0], POLLIN, 0} //output from shell
+            {pipe_childToParent[READ_PORT], POLLIN, 0} //output from shell
         };
 
         int atEOT = 0;
@@ -205,8 +217,8 @@ int main(int argc, char *argv[])
             {
                 close(sockfd);
                 close(newsockfd);
-                close(pipe_childToParent[0]);
-                close(pipe_parentToChild[1]);
+                close(pipe_childToParent[READ_PORT]);
+                close(pipe_parentToChild[WRITE_PORT]);
                 fprintf(stderr, "SHELL EXIT SIGNAL=%d STATUS=%d\n", WTERMSIG(status), WEXITSTATUS(status));
                 exit(0);
             }
@@ -214,22 +226,19 @@ int main(int argc, char *argv[])
             if (poll(file_descriptors, 2, 0) > 0)
             {
 
-                short revents_socket = file_descriptors[0].revents;
-                short revents_shell = file_descriptors[1].revents;
+                short socket_revents = file_descriptors[0].revents;
+                short shell_revents = file_descriptors[1].revents;
 
-                /* check that socket has pending input */
-                if (revents_socket == POLLIN)
+                if (socket_revents == POLLIN)
                 {
-                    char input[256];
-                    int num = read(newsockfd, &input, 256);
+                    char buf[256];
+                    int num = read(newsockfd, &buf, 256);
 
                     if (compress)
                     {
-                        //decompress
-                        //fprintf(stderr, "server decompressing data\n");
                         char compression_buf[1024];
                         toServer.avail_in = num;
-                        toServer.next_in = (unsigned char *)input;
+                        toServer.next_in = (unsigned char *)buf;
                         toServer.avail_out = 1024;
                         toServer.next_out = (unsigned char *)compression_buf;
 
@@ -238,82 +247,51 @@ int main(int argc, char *argv[])
                             inflate(&toServer, Z_SYNC_FLUSH);
                         } while (toServer.avail_in > 0);
 
-                        for (i = 0; (unsigned int)i < 1024 - toServer.avail_out; i++)
+                        i = 0;
+                        while ((unsigned int)i < 1024 - toServer.avail_out)
                         {
-                            if (compression_buf[i] == ETX)
-                            {
-                                kill(newPID, SIGINT);
-                            }
-                            else if (compression_buf[i] == EOT)
-                            {
-                                atEOT = 1;
-                            }
-                            else if (compression_buf[i] == CR || compression_buf[i] == LF)
-                            {
-                                char lf = LF;
-                                write(pipe_parentToChild[1], &lf, 1);
-                            }
-                            else
-                            {
-                                write(pipe_parentToChild[1], (compression_buf + i), 1);
-                            }
+                            handle_character(compression_buf+i, i, &atEOT);
+                            i++;
                         }
                     }
                     else
                     {
-                        //no compress option
-                        for (i = 0; i < num; i++)
+                        i = 0;
+                        while (i < num)
                         {
-                            if (input[i] == ETX)
-                            {
-                                kill(newPID, SIGINT);
-                            }
-                            else if (input[i] == EOT)
-                            {
-                                atEOT = 1;
-                            }
-                            else if (input[i] == CR || input[i] == LF)
-                            {
-                                char lf = LF;
-                                write(pipe_parentToChild[1], &lf, 1);
-                            }
-                            else
-                            {
-                                write(pipe_parentToChild[1], (input + i), 1);
-                            }
+                            handle_character(buf+i, i, &atEOT);
+                            i++;
                         }
                     }
                 }
-                else if (revents_socket == POLLERR)
+                else if (socket_revents == POLLERR)
                 {
-                    fprintf(stderr, "Error with poll from socket.\n");
+                    fprintf(stderr, "Error: can't poll socket.\n\r");
                     exit(1);
                 }
 
-                /* check that the shell has pending input */
-                if (revents_shell == POLLIN)
+                if (shell_revents == POLLIN)
                 {
-                    char input[256];
-                    int num = read(pipe_childToParent[0], &input, 256);
-
+                    char buf[256];
+                    int num = read(pipe_childToParent[READ_PORT], &buf, 256);
                     int count = 0;
                     int j;
-                    for (i = 0, j = 0; i < num; i++)
+                    i = 0;
+                    j = 0;
+                    while ( i < num)
                     {
-                        if (input[i] == EOT)
-                        { //EOF from shell
+                        if (buf[i] == EOT)
+                        { 
                             atEOT = 1;
                         }
-                        else if (input[i] == LF)
+                        else if (buf[i] == LF)
                         {
 
                             if (compress)
                             {
-                                //fprintf(stderr, "server compressing data\n");
-                                //compress
                                 char compression_buf[256];
                                 toClient.avail_in = count;
-                                toClient.next_in = (unsigned char *)(input + j);
+                                toClient.next_in = (unsigned char *)(buf + j);
                                 toClient.avail_out = 256;
                                 toClient.next_out = (unsigned char *)compression_buf;
 
@@ -324,7 +302,6 @@ int main(int argc, char *argv[])
 
                                 write(newsockfd, compression_buf, 256 - toClient.avail_out);
 
-                                //compress crlf
                                 char compression_buf2[256];
                                 char crlf_copy[2] = {CR, LF};
                                 toClient.avail_in = 2;
@@ -341,23 +318,23 @@ int main(int argc, char *argv[])
                             }
                             else
                             {
-                                //no compress option
-                                write(newsockfd, (input + j), count);
+                                write(newsockfd, (buf + j), count);
                                 write(newsockfd, crlf, 2);
                             }
 
                             j += count + 1;
                             count = 0;
+                            i++;
                             continue;
                         }
                         count++;
+                        i++;
                     }
 
-                    //compress
-                    write(newsockfd, (input + j), count);
+                    write(newsockfd, (buf + j), count);
                 }
-                else if (revents_shell & POLLERR || revents_shell & POLLHUP)
-                { //polling error
+                else if (shell_revents & POLLERR || shell_revents & POLLHUP)
+                { 
                     atEOT = 1;
                 }
             }
@@ -365,8 +342,8 @@ int main(int argc, char *argv[])
 
         close(sockfd);
         close(newsockfd);
-        close(pipe_childToParent[0]);
-        close(pipe_parentToChild[1]);
+        close(pipe_childToParent[READ_PORT]);
+        close(pipe_parentToChild[WRITE_PORT]);
         int tempStatus;
         waitpid(newPID, &tempStatus, 0);
         fprintf(stderr, "SHELL EXIT SIGNAL=%d STATUS=%d\n", WTERMSIG(tempStatus), WEXITSTATUS(tempStatus));

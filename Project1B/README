@@ -8,3 +8,7 @@ Compressed Network Communication
 In this project, I built a multi-process telnet-like client and server. It can be broken up into two major steps:
 Passing input and output over a TCP socket
 Compressing communication between the client and server
+
+I cited the following references provided in the spec:
+    http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
+    https://www.zlib.net/zlib_how.html

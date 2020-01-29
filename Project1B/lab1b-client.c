@@ -1,6 +1,7 @@
 // NAME: Prithvi Kannan
 // EMAIL: prithvi.kannan@gmail.com
 // ID: 405110096
+
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -24,47 +25,48 @@
 
 struct termios original_mode;
 char crlf[2] = {CR, LF};
-char newline = '\n';
-
-char sending_prefix[20] = "SENT ";
-char sending_end[20] = " bytes: ";
-char receiving_prefix[20] = "RECEIVED ";
-char receiving_end[20] = " bytes: ";
 
 z_stream toServer;
 z_stream toClient;
 
 int sockfd, logfd;
 
+void writeToLog(int compress, int sending, char* buf, int num) {
+	char sending_prefix[20] = "SENT ";
+	char sending_end[20] = " bytes: ";
+	char receiving_prefix[20] = "RECEIVED ";
+	char receiving_end[20] = " bytes: ";
+	char newline = '\n';
+	char num_bytes[20];
+
+	if (sending) {
+		if (compress) {
+			sprintf(num_bytes, "%d", 256 - toServer.avail_out);
+		} else {
+			sprintf(num_bytes, "%d", num);
+		}
+		write(logfd, sending_prefix, strlen(sending_prefix));
+		write(logfd, num_bytes, strlen(num_bytes));
+		write(logfd, sending_end, strlen(sending_end));
+		if (compress) {
+			write(logfd, buf, 256 - toServer.avail_out);
+		} else {
+			write(logfd, buf, num);
+		}
+	} else {
+		sprintf(num_bytes, "%d", num);
+		write(logfd, receiving_prefix, strlen(receiving_prefix));
+		write(logfd, num_bytes, strlen(num_bytes));
+		write(logfd, receiving_end, strlen(receiving_end));
+		write(logfd, buf, num);
+	}
+	write(logfd, &newline, 1);
+
+}
 //the function that will be called upon normal process termination
 void restore(void)
 {
 	tcsetattr(STDIN_FILENO, TCSANOW, &original_mode);
-}
-
-/* Puts the standard input into non-canonical input mode with no echo */
-void set_mode(void)
-{
-	struct termios mode;
-
-	if (!isatty(STDIN_FILENO))
-	{
-		fprintf(stderr, "Standard input does not refer to a terminal.\n\r");
-		exit(1);
-	}
-
-	tcgetattr(STDIN_FILENO, &original_mode);
-	atexit(restore);
-
-	tcgetattr(STDIN_FILENO, &mode);
-
-	mode.c_iflag = ISTRIP;
-	mode.c_oflag = 0;
-	mode.c_lflag = 0;
-	mode.c_cc[VMIN] = 1;
-	mode.c_cc[VTIME] = 0;
-
-	tcsetattr(STDIN_FILENO, TCSANOW, &mode);
 }
 
 int main(int argc, char *argv[])
@@ -97,16 +99,14 @@ int main(int argc, char *argv[])
 
 		case 'l':
 			log = 1;
-			if ((logfd = creat(optarg, 0666)) == -1)
+			if ((logfd = creat(optarg, 0644)) == -1)
 			{
-				fprintf(stderr, "Failure to create/write to file.\n\r");
+				fprintf(stderr, "Error: unable to write to file\n\r");
 			}
-
 			break;
 
 		case 'c':
 			compress = 1;
-
 			toClient.zalloc = Z_NULL;
 			toClient.zfree = Z_NULL;
 			toClient.opaque = Z_NULL;
@@ -116,26 +116,38 @@ int main(int argc, char *argv[])
 
 			if (inflateInit(&toClient) != Z_OK)
 			{
-				fprintf(stderr, "Failure to inflateInit on client side.\n\r");
+				fprintf(stderr, "Error: can't inflate on client side.\n\r");
 				exit(1);
 			}
-
 			if (deflateInit(&toServer, Z_DEFAULT_COMPRESSION) != Z_OK)
 			{
-				fprintf(stderr, "Failure to deflateInit on client side.\n\r");
+				fprintf(stderr, "Error: can't deflate on client side.\n\r");
 				exit(1);
 			}
-
 			break;
 
 		default:
-			fprintf(stderr, "Error in arguments.\n\r");
+			fprintf(stderr, "Error: expected usage is lab1b-client --port=port with optional --log=file and --compress.\n\r");
 			exit(1);
 			break;
 		}
 	}
 
-	set_mode();
+	// change terminal modes
+    struct termios modified_mode;
+    if (!isatty(STDIN_FILENO))
+    {
+        fprintf(stderr, "Error: Standard input is not a terminal.\n");
+        exit(1);
+    }
+
+    tcgetattr(STDIN_FILENO, &original_mode);
+    tcgetattr(STDIN_FILENO, &modified_mode);
+    modified_mode.c_iflag = ISTRIP;
+    modified_mode.c_oflag = 0;
+    modified_mode.c_lflag = 0;
+    tcsetattr(STDIN_FILENO, TCSANOW, &modified_mode);
+	atexit(restore);
 
 	/* Create a socket */
 
@@ -143,13 +155,15 @@ int main(int argc, char *argv[])
 	struct hostent *server;
 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (sockfd < 0)
-		fprintf(stderr, "ERROR opening socket");
+	if (sockfd < 0) {
+		fprintf(stderr, "Error: can't open socket\n\r");
+		exit(1);
+	}
 	server = gethostbyname("localhost");
 	if (server == NULL)
 	{
-		fprintf(stderr, "ERROR, no such host\n");
-		exit(0);
+		fprintf(stderr, "Error: invalid host\n\r");
+		exit(1);
 	}
 	bzero((char *)&serv_addr, sizeof(serv_addr));
 	serv_addr.sin_family = AF_INET;
@@ -159,20 +173,16 @@ int main(int argc, char *argv[])
 	serv_addr.sin_port = htons(portno);
 	if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
 	{
-		fprintf(stderr, "ERROR connecting");
+		fprintf(stderr, "Error: can't connect\n\r");
 		exit(1);
 	}
 
 	struct pollfd file_descriptors[] = {
-		{STDIN_FILENO, POLLIN, 0}, //keyboard (stdin)
-		{sockfd, POLLIN, 0}		   //socket
+		{STDIN_FILENO, POLLIN, 0}, 
+		{sockfd, POLLIN, 0}		   
 	};
 
 	int i;
-	char sending_prefix[20] = "SENT ";
-	char sending_end[20] = " bytes: ";
-	char receiving_prefix[20] = "RECEIVED ";
-	char receiving_end[20] = " bytes: ";
 
 	while (1)
 	{
@@ -181,7 +191,6 @@ int main(int argc, char *argv[])
 			short revents_stdin = file_descriptors[0].revents;
 			short revents_socket = file_descriptors[1].revents;
 
-			/* check that stdin has pending input */
 			if (revents_stdin == POLLIN)
 			{
 				char input[256];
@@ -202,8 +211,6 @@ int main(int argc, char *argv[])
 
 				if (compress)
 				{
-					//compress data
-					//fprintf(stderr, "client compressing data\n");
 					char compression_buf[256];
 					toServer.avail_in = num;
 					toServer.next_in = (unsigned char *)input;
@@ -219,39 +226,25 @@ int main(int argc, char *argv[])
 
 					if (log)
 					{
-						char num_bytes[20];
-						sprintf(num_bytes, "%d", 256 - toServer.avail_out);
-						write(logfd, sending_prefix, strlen(sending_prefix));
-						write(logfd, num_bytes, strlen(num_bytes));
-						write(logfd, sending_end, strlen(sending_end));
-						write(logfd, compression_buf, 256 - toServer.avail_out);
-						write(logfd, &newline, 1);
+						writeToLog(1, 1, compression_buf, 0);
 					}
 				}
 				else
 				{
-					//no compress option
 					write(sockfd, input, num);
 
 					if (log)
 					{
-						char num_bytes[20];
-						sprintf(num_bytes, "%d", num);
-						write(logfd, sending_prefix, strlen(sending_prefix));
-						write(logfd, num_bytes, strlen(num_bytes));
-						write(logfd, sending_end, strlen(sending_end));
-						write(logfd, input, num);
-						write(logfd, &newline, 1);
+						writeToLog(0, 1, input, num);
 					}
 				}
 			}
 			else if (revents_stdin == POLLERR)
 			{
-				fprintf(stderr, "Error with poll with STDIN.\n\r");
+				fprintf(stderr, "Error: can't poll stdin.\n\r");
 				exit(1);
 			}
 
-			/* check that the socket has pending input */
 			if (revents_socket == POLLIN)
 			{
 				char input[256];
@@ -263,8 +256,6 @@ int main(int argc, char *argv[])
 
 				if (compress)
 				{
-					//decompress data
-					//fprintf(stderr, "client decompressing data\n");
 					char compression_buf[1024];
 					toClient.avail_in = num;
 					toClient.next_in = (unsigned char *)input;
@@ -280,19 +271,12 @@ int main(int argc, char *argv[])
 				}
 				else
 				{
-					// no compress option
 					write(STDOUT_FILENO, input, num);
 				}
 
 				if (log)
 				{
-					char num_bytes[20];
-					sprintf(num_bytes, "%d", num);
-					write(logfd, receiving_prefix, strlen(receiving_prefix));
-					write(logfd, num_bytes, strlen(num_bytes));
-					write(logfd, receiving_end, strlen(receiving_end));
-					write(logfd, input, num);
-					write(logfd, &newline, 1);
+					writeToLog(0, 0, input, num);
 				}
 			}
 			else if (revents_socket & POLLERR || revents_socket & POLLHUP)
