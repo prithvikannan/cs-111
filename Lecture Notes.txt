@@ -1,3 +1,5 @@
+---------------------- PROCESS ----------------------
+
 Process and Stack Frames
     Procedure call creates a new stack frame 
         Local variables
@@ -12,7 +14,6 @@ Address Space - Stack
     OS manages process's stack 
         Can be fixed sized or dynamically extended
         Read/write and process private
-
 
 Process State
     Registers (general, PC, processor status, stack/frame pointer)
@@ -174,4 +175,210 @@ Priority scheduling Linux
     "nice" value
     Cannot raise priority by normal user, need to be sudo
 
+---------------------- MEMORY ----------------------
+
+Physical and Virtual Address    
+    Each process appears to have infinite memory
+    Layer of abstraction between process and the hard disk
+
+Memory Management strategies
+
+    Protection
+        Enforced partition boundaries
+        Implemented using special hardware registers 
+
+    Fixed Partition allocation
+        Preallocate partition for each processes
+        Assume set sized chunks
+        Simple, easy to implement
+
+    Dynamic Partition Allocation
+        Variable sizes
+        Can't relocate memory after being given to a process
+        Still subject to internal fragmentation since process asks for more than used
+        Also subject to external fragmentation
+
+Fragmentation  
+    Internal: memory given to a process that is not being used
+        Occurs as a result of fixed size partition
+        Average waste is 50% of a block
+    External: each allocation creates extra chunks between Partitions
+        Leftover chunks become smaller and smaller
+        Requires a daemon process to consolidate small pieces back into consolidated pieces
+
+Relocation 
+    Requires copying an entire segment of memory to a new space 
+    Very difficult and expensive
+    
+Free Lists for Dynamic Partition
+    Store metadata - size of chunk, status, pointer to next
+    Algorithm:
+        Start with single "heap"
+        Maintain a 'free list' to keep track of unallocated memory
+        When process asks for memory
+            Find a large chunk
+            Carve out piece of requested size, make new header for residual chunk
+            Put remainder back in list 
+        When process gives up memory
+            Put memory back in free list
+        Free
+    Run 1 layer in the kernel
+
+Deciding how much to allocate per request
+    "smart" choices are computationally expensive --> takes time
+    Best fit   
+        Smallest size greater than or equal to requested
+        Advantage - may find perfect fit (minimize internal fragmentation)
+        Disadvantage - requires searching the entire free list; creates very small fragments
+    Worst fit   
+        Largest size greater than or equal to requested
+        Advantage - Creates very large pieces (minimize external fragmentation)
+        Disadvantage - requires searching the entire free list
+    First fit
+        Finds first piece large enough for request
+        Advantage - Short search time; creates randomly sized partitions 
+        Disadvantage - Search time approaches O(n); in the long term small fragments
+    Next fit 
+        Use first fit starting from the ending of previous search (uses a guess ptr)
+        If guess is right, saves a lot of time
+        If guess is wrong, algo still works
+        Advantage - Shorter search time, spreads out searches 
+        Most modern systems use this        
+
+Coalescing Partitions
+    Reassemble fragments that are given back the OS
+    Algorithm:
+        Check neighbors when a chunk is freed
+        Recombine if possible (using free list)
+
+A Special Case for Fixed Allocations
+ 
+Distribution of memory requests
+    Certain sizes are much more popular (often in buffer sizes)
+    Buffer Pools: create independent list of x sized chunks --> no fragmentation, perfect match
+        Eliminates searching, carving, coalescing
+        Once buffer has been used, give back to OS and can easily redistribute
+        Per-process data structure (buffer size is more constant within a process, use profiling from history data) 
+    
+Dynamically Sizing Buffer Pools
+    Creates a load-adaptive system 
+    If low on fixed size buffers
+        Get more memory from the free list
+        Carve it up into more fixed sized buffers
+    If our fixed buffer list gets too large
+        Return some buffers to the free list
+    If the free list gets dangerously low
+        Ask each major service with a buffer pool to return space
+    Requires tuned parameters: Low space (need more) threshold, High space (have too much) threshold, Nominal allocation (what we free down to)
+
+Memory Leaks
+    Process done with memory but doesn't call free once done, long running processes can waste lots of memory     
+    Garbage Collection can be a solutions
+        Automatically deallocate if no more references to object 
+        Runs when memory is low
+
+Search data space finding every object pointer
+Note address/size of all accessible objects
+Compute the compliment (what is inaccessible)
+Add all inaccessible memory to the free list
+
+How Do We Find All Accessible Memory?
+Object oriented languages often enable this
+All object references are tagged
+All object descriptors include size information
+It is often possible for system resources
+Where all possible references are known 
+	(E.g., we know who has which files open)
+How about for the general case?
+
+General Garbage Collection
+Well, what would you need to do?
+Find all the pointers in allocated memory
+Determine “how much” each points to
+Determine what is and is not still pointed to
+Free what isn’t pointed to
+Why might that be difficult?
+Problems With General Garbage Collection
+A location in the data or stack segments might seem to contain addresses, but ...
+Are they truly pointers, or might they be other data types whose values happen to resemble addresses?
+If pointers, are they themselves still accessible?  
+We might be able to infer this (recursively) for pointers in dynamically allocated structures …
+But what about pointers in statically allocated (potentially global) areas?  
+And how much is “pointed to,” one word or a million?	
+Compaction and Relocation
+Garbage collection is just another way to free memory
+Doesn’t greatly help or hurt fragmentation
+Ongoing activity can starve coalescing
+Chunks reallocated before neighbors become free
+We could stop accepting new allocations
+But resulting convoy on memory manager would trash throughput
+We need a way to rearrange active memory
+Re-pack all processes in one end of memory
+Create one big chunk of free space at other end
+Memory Compaction
+ 
+All This Requires Is Relocation . . .
+The ability to move a process
+From region where it was initially loaded
+Into a new and different region of memory
+What’s so hard about that?
+All addresses in the program will be wrong
+References in the code segment
+Calls and branches to other parts of the code
+References to variables in the data segment
+Plus new pointers created during execution
+That point into data and stack segments
+Why Is Relocation Hard?
+ 
+The Relocation Problem
+It is not generally feasible to relocate a process
+Maybe we could relocate references to code
+If we kept the relocation information around
+But how can we relocate references to data?
+Pointer values may have been changed
+New pointers may have been created
+We could never find/fix all address references
+Like the general case of garbage collection
+Can we make processes location independent?
+
+Virtual Address Spaces
+ 
+Memory Segment Relocation
+A natural model
+Process address space is made up of multiple segments
+Use the segment as the unit of relocation
+Long tradition, from the IBM system 360 to Intel x86 architecture
+Computer has special relocation registers
+They are called segment base registers
+They point to the start (in physical memory) of each segment
+CPU automatically adds base register to every address
+OS uses these to perform virtual address translation
+Set base register to start of region where program is loaded
+If program is moved, reset base registers to new location
+Program works no matter where its segments are loaded
+
+How Does Segment Relocation Work?
+ 
+Relocating a Segment
+ 
+Relocation and Safety
+A relocation mechanism (like base registers) is good
+It solves the relocation problem
+Enables us to move process segments in physical memory
+Such relocation turns out to be insufficient
+We also need protection
+Prevent process from reaching outside its allocated memory
+E.g., by overrunning the end of  a mapped segment
+Segments also need a length (or limit) register
+Specifies maximum legal offset (from start of segment)
+Any address greater than this is illegal (in the hole)
+CPU should report it via a segmentation exception (trap)
+How Much of Our Problem Does Relocation Solve?
+We can use variable sized partitions
+Cutting down on internal fragmentation
+We can move partitions around
+Which helps coalescing be more effective
+But still requires contiguous chunks of data for segments
+So external fragmentation is still a problem
+We need to get rid of the requirement of contiguous segments 
 
