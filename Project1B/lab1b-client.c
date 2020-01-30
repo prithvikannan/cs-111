@@ -32,12 +32,7 @@ z_stream toClient;
 int sockfd, logfd;
 
 void writeToLog(int compress, int sending, char* buf, int num) {
-	char sending_prefix[20] = "SENT ";
-	char sending_end[20] = " bytes: ";
-	char receiving_prefix[20] = "RECEIVED ";
-	char receiving_end[20] = " bytes: ";
-	char newline = '\n';
-	char num_bytes[20];
+	char num_bytes[10];
 
 	if (sending) {
 		if (compress) {
@@ -45,9 +40,9 @@ void writeToLog(int compress, int sending, char* buf, int num) {
 		} else {
 			sprintf(num_bytes, "%d", num);
 		}
-		write(logfd, sending_prefix, strlen(sending_prefix));
+		write(logfd, "SENT ", 5);
 		write(logfd, num_bytes, strlen(num_bytes));
-		write(logfd, sending_end, strlen(sending_end));
+		write(logfd, " bytes: ", 8);
 		if (compress) {
 			write(logfd, buf, 256 - toServer.avail_out);
 		} else {
@@ -55,15 +50,15 @@ void writeToLog(int compress, int sending, char* buf, int num) {
 		}
 	} else {
 		sprintf(num_bytes, "%d", num);
-		write(logfd, receiving_prefix, strlen(receiving_prefix));
+		write(logfd, "RECEIVED ", 9);
 		write(logfd, num_bytes, strlen(num_bytes));
-		write(logfd, receiving_end, strlen(receiving_end));
+		write(logfd, " bytes: ", 8);
 		write(logfd, buf, num);
 	}
-	write(logfd, &newline, 1);
+	write(logfd, "\n", 1);
 
 }
-//the function that will be called upon normal process termination
+
 void restore(void)
 {
 	tcsetattr(STDIN_FILENO, TCSANOW, &original_mode);
@@ -71,7 +66,9 @@ void restore(void)
 
 int main(int argc, char *argv[])
 {
-	/* supports --log, --port, and --compress arguments */
+
+	// CHECK PARAMETERS
+
 	struct option args[] = {
 		{"port", 1, 0, 'p'},
 		{"log", 1, 0, 'l'},
@@ -80,10 +77,9 @@ int main(int argc, char *argv[])
 
 	int portno = 0;
 	int log = 0;
-	logfd = -1;
 	int compress = 0;
-
 	int param;
+
 	while (1)
 	{
 		param = getopt_long(argc, argv, "", args, NULL);
@@ -99,7 +95,8 @@ int main(int argc, char *argv[])
 
 		case 'l':
 			log = 1;
-			if ((logfd = creat(optarg, 0644)) == -1)
+			logfd = creat(optarg, 0644);
+			if (logfd == -1)
 			{
 				fprintf(stderr, "Error: unable to write to file\n\r");
 			}
@@ -133,7 +130,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	// change terminal modes
+	// CHANGE TERMINAL MODE
+
     struct termios modified_mode;
     if (!isatty(STDIN_FILENO))
     {
@@ -149,7 +147,7 @@ int main(int argc, char *argv[])
     tcsetattr(STDIN_FILENO, TCSANOW, &modified_mode);
 	atexit(restore);
 
-	/* Create a socket */
+	// MAKE A SOCKET
 
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
@@ -170,12 +168,17 @@ int main(int argc, char *argv[])
 	bcopy((char *)server->h_addr,
 		  (char *)&serv_addr.sin_addr.s_addr,
 		  server->h_length);
+	if (portno == 0) {
+		fprintf(stderr, "Error: invalid or no port\n\r");
+	}
 	serv_addr.sin_port = htons(portno);
 	if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
 	{
 		fprintf(stderr, "Error: can't connect\n\r");
 		exit(1);
 	}
+
+	// POLL FILE DESCRIPTORS
 
 	struct pollfd file_descriptors[] = {
 		{STDIN_FILENO, POLLIN, 0}, 
@@ -260,7 +263,7 @@ int main(int argc, char *argv[])
 				{
 					break;
 				}
-
+				
 				if (compress)
 				{
 					char bufCompress[1024];

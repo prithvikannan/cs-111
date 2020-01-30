@@ -59,11 +59,11 @@ void handle_character(char *buf, int i, int* atEOT) {
             break;
     }
 }
-void handle_sigpipe()
+void handleSignal()
 {
+    kill(newPID, SIGKILL);
     close(pipe_parentToChild[WRITE_PORT]);
     close(pipe_childToParent[READ_PORT]);
-    kill(newPID, SIGKILL);
     int status;
     waitpid(newPID, &status, 0);
     fprintf(stderr, "SHELL EXIT SIGNAL=%d STATUS=%d\n", WTERMSIG(status), WEXITSTATUS(status));
@@ -72,7 +72,8 @@ void handle_sigpipe()
 
 int main(int argc, char *argv[])
 {
-    /* supports --port and --compress args */
+
+    // CHECK PARAMETERS
 
     struct option args[] = {
 
@@ -126,7 +127,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    /* Create a socket */
+	// MAKE A SOCKET
 
     unsigned int clilen;
     struct sockaddr_in serv_addr, cli_addr;
@@ -140,6 +141,9 @@ int main(int argc, char *argv[])
     bzero((char *)&serv_addr, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
+    if (portno == 0) {
+		fprintf(stderr, "Error: invalid or no port\n\r");
+	}
     serv_addr.sin_port = htons(portno);
     if (bind(sockfd, (struct sockaddr *)&serv_addr,
              sizeof(serv_addr)) < 0)
@@ -156,20 +160,21 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    //create pipes
+    // MAKE PIPES
+
     if (pipe(pipe_parentToChild) != 0 || pipe(pipe_childToParent) != 0)
     {
 		fprintf(stderr, "Error: failed to make pipes\n\r");
         exit(1);
     }
 
-    signal(SIGPIPE, handle_sigpipe);
+    signal(SIGPIPE, handleSignal);
 
     newPID = fork();
 
     switch (newPID)
     {
-    case -1: // bad PID
+    case -1: // bad pid
 		fprintf(stderr, "Error: unable to fork\n\r");
         exit(1);
 
@@ -195,7 +200,7 @@ int main(int argc, char *argv[])
         }
         break;
 
-    default:
+    default: // parent process
         close(pipe_parentToChild[READ_PORT]); //read end from parent to child
         close(pipe_childToParent[WRITE_PORT]); //write end from child to parent
 
