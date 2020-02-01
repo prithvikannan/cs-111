@@ -1,0 +1,67 @@
+Reiher midterm 1
+
+1. Page replacement algo
+    - need to minimize misses bc misses are 1000x as expensive as hits
+    - poor selection of page replacement algo results in poor performance 
+        - lots of page faults -> lots of reads from disks
+        - program will run slow
+    - types of page replacement algorithms
+        - least frequently used: close to optimal, requires a data structure to maintain frequencies (lots of overhead)
+        - random: just bad
+        - optimal: (theoretical) remove page needed furthest away in the future
+        - FIFO: fair but not efficient
+        - least recently used:
+        - clock algorithm:
+
+2. Spin locks
+
+3. Process memory requests
+    - memory using segmentation 
+        - specify start offset 
+        - specify end offset/size
+    - if compute address is invalid --> return a segfault
+    - X is already loaded into TLB -> just return X
+    - X is not in TLB, have to look into RAM -> load X into TLB and return X 
+    - X is not in TLB, RAM, have to look into disk -> load X into page table and return X
+    - X is not in TLB, RAM, disk -> throw error
+
+4. Forking
+    - different PID for the new process 
+    - eventually new data segment with copy on write
+
+5. Minimize turnaround time
+    - turnaround time = time to completion - time of arrival
+    - types of scheduling algorithms    
+        - preemptive SJF: still assumes the runtime is known, is able to stop long process
+        - round robin: bad for turnaround time
+        - SJF: assumes all processes arrive at same time (long process keep running)
+
+6. Paged memory allocation and fragmentation
+    - less internal fragmentation
+        - giving out smaller chunks minimizes wasted space
+        - by 50% rule, used to be 2K wasted now only 500 wasted
+    - no external fragmentation 
+        - fixed chunks of 4K or 1K will be given back to the OS when free is called and can 
+        be redistributed when a new malloc is called
+    - process has 4x more pages
+        - larger page tables
+        - more likely to have page fault, misses
+        - page replacement algorithm runs slower
+
+7. IPC mechanisms   
+    - flow control
+        - ensuring direction of data
+        - ensuring no data is lost
+    - OS doesn't regulate a process's read/write to memory (no system calls after initalization)
+    - for sockets or pipes, process uses OS system calls
+
+8. Application binary interface
+    - allows the same program to run on different hardware architectures (ISA)
+    - contract between binaries (executable produced by compiler), OS, ISA
+    - download the program using only OS and architecture, company can just give you a binary 
+
+9. Memory management technique for relocation
+    - virtual memory abstraction means the process is not affected
+    - process has a virtual address space (infinite)
+    - "under the hood", the physical address can change and the process will not notice
+    - only requires the process to update the translation (relocation register)
