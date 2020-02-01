@@ -1,0 +1,27 @@
+NAME: Prithvi Kannan
+EMAIL: prithvi.kannan@gmail.com
+ID: 405110096
+
+Project 4A
+In this project I learned how to use my beaglebone to transfer files and as another computer.
+
+MAC Address: a8:10:87:59:d9:e1
+MAC: 2CF7F106A0AB
+Serial Number: BBGW1901072
+
+Files Included:
+    build_run.PNG - compile and run HelloWorld.c using gcc
+    connected.PNG - shows the name I gave my beaglebone, 405110096.lasr.cs.ucla.edu, and that I connected it to UCLA_WEB 
+    copy.PNG - copies a file HelloWorld.c from my local computer to the beaglebone using pscp 
+    git.PNG - install git and clone the public git repo libgit2
+    Makefile - contains a targets 'make dist' to create a tarball with the images and 'make clean' to remove the tarball
+    my-beaglebone.jpg - selfie of myself with my beaglebone
+    README - describing the project
+
+HelloWorld.c:
+    #include <stdio.h>
+    int main() {
+    // printf() displays the string inside quotation
+    printf("Hello, World!");
+    return 0;
+    }
