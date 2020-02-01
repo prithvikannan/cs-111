@@ -1,3 +1,25 @@
+
+---------------------- INTRO ----------------------
+
+Resources 
+    Serially reusable (time multiplexing)
+        Multiple clients one at a time
+        Requires graceful transition (like new condition)
+    Partitionable (spacial multiplexing)
+        Disjoint pieces for different clients
+        Access control between partitions
+    Sharable
+        Used by multiple clients at once
+        Don't have to wait for resource
+
+Libraries
+    Reuse code in well-maintained copy 
+    Static: include in load module when linked
+    Dynamic: choose and load at run-time
+    Shared: map into address space at execution time    
+        Advantage is reduced memory consumption, faster startup, simplified update
+        Disadvantage is can't have global data, always added to program memory
+        
 ---------------------- PROCESS ----------------------
 
 Process and Stack Frames
