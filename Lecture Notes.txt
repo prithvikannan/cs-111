@@ -262,7 +262,7 @@ Distribution of memory requests
     
 Dynamically Sizing Buffer Pools
     Creates a load-adaptive system 
-    If low on fixed size buffers
+    sIf low on fixed size buffers
         Get more memory from the free list
         Carve it up into more fixed sized buffers
     If our fixed buffer list gets too large
