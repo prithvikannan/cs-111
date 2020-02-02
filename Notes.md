@@ -61,7 +61,6 @@
 - OS using a method to initialize
   - No initial state or resources (windows approach)
 - Requested by another process
-
   - Clone the calling process (unix approach)
   - Notion of parent/child relationship
 
@@ -101,6 +100,9 @@
   - Without OS intervention...
   - Unless the program makes a system call (hits a trap) and transfers control to the OS
   - To optimize performance, enter the OS as seldom as possible
+- 2 phases to Limited Direct Execution
+      1. Boot mode in which the trap table is initialized by kernel and saved by CPU
+      2. Kernel/User mode: Kernel sets up a few things OS switches between user and kernel mode based on traps/return-to-trap instructions
 
 ## Loading a processes
 
@@ -152,6 +154,16 @@
 - Data structure created by scheduler to determine the order to run processes
 - All processes in queue are in 'ready' state
 
+## Context switching
+- Switching from Process A to B
+    1. A is running and has a timer interrupt. It's register's get saved on the kernel stack by the HARDWARE
+    2. The OS switches to kernel mode and goes to the the trap handler
+    3. Calls the switch() routine, in which A's registers are saved by the SOFTWARE into the memory in the process structure of A 
+    4. Restores B's registers from its process structure
+    5. Switches contexts by changing the stack pointer to B's kernel stack 
+    6. Moves back to user mode and runs process B 
+
+
 # SCHEDULER
 
 ## Scheduling Goals (relative priority varies depending on use case)
@@ -161,6 +173,10 @@
 - Fairness - minimize worst case time (for multi-users)
 - Priority goals - certain processes are more important (for different groups)
 - Real time - items have deadlines to be met (niche case ie missile defense)
+
+- Scheduling Metrics
+  - Turnaround time: Time of Completion - Time of Arrival --> maximizes performance
+  - Response time: Time of First Run - Time of Arrival --> maximizes fairness
 
 ## Scheduling: Policy and Mechanism
 
@@ -191,10 +207,30 @@
   - Drop the job
   - System may fall behind
 
-## SJF scheduling
+## Scheduling methods
 
-- Picks the shortest job first and runs that
-- Assumes that jobs come in at the same time
+- Methods of Scheduling
+
+  - First in, First Out (FIFO)
+
+    - As the name states, the processes are completed as they arrive in the scheduler
+    - Bad if short processes are backlogged behind longer processeses that come first (Fails workload assumption 1)
+
+    - Shortest Job First (SJF)
+
+      - The scheduler will prioritize finishing up jobs that take the least amount of time
+      - Bad if the arrival times are not the same (Fails workload assumption 2)
+
+    - Shortest Time to Completion First (STCF)
+      - aka Preemptive Shortest Job First (PSJF)
+      - Essentially can preemptively switch to another shorter task in the middle of a longer task
+      - **Optimal scheduling algorithm**
+    - Round Robin
+      - Divides each task into time slices and runs them one after the other (ie: ABCABC)
+      - Need to amortize time slice- if it's too small then not worth because switching has its own time
+        - ex: if the time slice is set to 10 ms, and the context-switch
+          cost is 1 ms, roughly 10% of time is spent context switching and is thus wasted
+        - instead, make the time slice 100 ms so then 1% of the time is spent context switching
 
 ## Preemptive scheduling
 
@@ -225,6 +261,22 @@
   - Move to back to short time queue if end before time slice
 - Real time queue doesn't use preemptive scheduling
 - Dynamic and automatic adjustment based on job behavior
+- Key part of the MLFQ is that it can change priority based on observed behavior
+  - If it uses CPU for extensive amount of time, priority is reduced
+  - If it relinquishes priority to CPU, then priority is high
+- Algorithm:
+  1. If Priority(A) > Priority(B), A runs (B doesn’t).
+  2. If Priority(A) = Priority(B), A & B run in RR.
+  3. When a job enters the system, it is placed at the highest priority (the topmost queue).
+     - Because you don't know the time of the process, you start with the assumption that it will be short
+     - However, you can then adjust this assumption based on what actually happen
+  4. Once a job uses up its time allotment at a given level (regardless of how many times it has given up the CPU), its priority is
+     reduced (i.e., it moves down one queue). - This rule was modified from a "forgetful time slice" (where once the program gave permission to CPU it reset the slice)
+     idea because programs could be written to game the system - Game the system: Programs may arbitrarily include I/O in order to hand permission back to the CPU,
+     and thus maintain their high priority - New rule fixes this because even if it gives up control the CPU, if its time is still long its priority is still decreased
+  5. After some time period S, move all the jobs in the system to the topmost queue.
+     - Solves problem of starvation: lower priority programs never being run- if they are that long they will eventually be bumped up
+     - Solves problem of change: if there is now a point where there is lots of I/O in program, the boost will help properly treat it
 
 ## Priority scheduling Linux
 
