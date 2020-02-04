@@ -6,7 +6,7 @@
 
 default: dist
 
-dist: 
+dist: README
 	tar -czvf lab4a-405110096.tar.gz build_run.png  connected.png  copy.png  git.png Makefile  my_beaglebone.jpg  README
 
 clean:
