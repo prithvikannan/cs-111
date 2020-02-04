@@ -456,6 +456,8 @@
 - Use variable sized partitions -> less internal fragmentation
 - Move partitions around -> helps coalescing be more effective, not solving external fragmentation problem
 - Still requires contiguous chunks of data for segments
+- Not feasible to run compaction often because inefficient
+  - Means external fragmentation will still exist
 
 # PAGING
 
@@ -625,7 +627,8 @@
   - Organize all pages in a circular list
     - MMU sets a reference bit for the page on access
     - Scan whenever we need another page
-    - For each page, ask MMU if page has been referenced
+    - If page is visited, set reference bit to 1
+    - For each page, ask MMU if page has been referenced 
       - If so, reset the reference bit in the MMU & skip this page
       - If not, consider this page to be the least recently used
     - Next search starts from this position, not head of list
