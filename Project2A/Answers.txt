@@ -1,0 +1,16 @@
+Why does it take iterations before errors are seen?
+    example, 12 threads, 2 iteratiosn each will still give the right answers
+    if it takes more time for a thread to be created then it takes for a thread to run, then the threads never bump into one another   
+    if thread 1 is done before thread 2 is started, no problem
+    when iterations go up, thread 1 doesnt finish before thread 2 is created, which creates the issues
+    less iterations -> less chances to go wrong, less threads competing for resources
+
+Cost of yielding
+    why are --yield runs so much slower
+        needs to switch threads 
+    where is the time going
+        context switch (better for threads than process)
+    is it possible to get valid per-op timings if we are using --yield
+        time of op + time of context switch go together
+
+    
