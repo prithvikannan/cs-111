@@ -748,3 +748,49 @@
 - May not be associated with just one process
 - Global LRU may be more appropriate
 - Shared pages often need/get special handling
+
+# Concurrency
+
+## Threads
+
+- similar to process, but share same address space
+- used with multiprocessor computers 
+  - split up task across multiple CPUs
+- avoids blocking processes due to slow I/O 
+  - another part of the code can be run in the meantime
+- context switch
+  - save registers and PC in thread control block (TCB)
+
+## Accessing shared data
+
+- Program to add 1 to a common variable gives different and wrong result every time (indeterminate)
+  - mov from address to register
+  - add 1 to register
+  - mov from register to address
+- Critical section: piece of code that accesses a *shared* resource
+- Race condition: multiple threads enter the critical section around the same time, and attempt to use the resource simultaneously 
+- If OS scheduler interrupts and switches, those 3 steps may not happen in order
+  - Solution: make atomic (as a unit)
+    - Use the hardware for synchronization/mutual exclusion primitives
+    
+## Thread API
+
+- pthread_create()
+  - Makes new threads with a function pointer
+- pthread_join()
+  - Wait for threads to complete
+- pthread_mutex_lock
+  - Locks a variable before a critical section
+  - Doesn't let other threads access that variable when lock is held
+- pthread_mutex_unlock
+  - Allows other processes to access variable
+
+## Locks
+
+- How to add locks for high performance 
+- Concurrent counters
+  - Adds a single lock at the start of routine, release at the end
+  - 
+
+  
+
