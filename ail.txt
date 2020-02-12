@@ -1,0 +1,183 @@
+... using test directory /u/ee/ugrad/prithvik/Documents/cs111/Project2A/CS111_test.prithvik
+... extracting /u/ee/ugrad/prithvik/Documents/cs111/Project2A/lab2a-405110096.tar.gz
+lab2_add.c
+lab2_list.c
+SortedList.h
+SortedList.c
+Makefile
+README
+lab2_add.gp
+lab2_list.gp
+lab2_add.csv
+lab2_list.csv
+lab2_add-1.png
+lab2_add-2.png
+lab2_add-3.png
+lab2_add-4.png
+lab2_add-5.png
+lab2_list-1.png
+lab2_list-2.png
+lab2_list-3.png
+lab2_list-4.png
+... checking for README file
+    README ... OK
+... checking for submitter ID in README
+    single submitter: 405110096
+... checking for submitter email in README
+    single address: prithvi.kannan@gmail.com ... OK
+... checking for submitter name in README
+    submitter(s): Prithvi Kannan ... OK
+... checking slip-day use in README
+    no SLIPDAYS: entry
+... checking for other expected files
+    Makefile ... OK
+    lab2_add.c ... OK
+    lab2_list.c ... OK
+    SortedList.c ... OK
+    SortedList.h ... OK
+    lab2_add.csv ... OK
+    lab2_list.csv ... OK
+    lab2_add-1.png ... OK
+    lab2_add-2.png ... OK
+    lab2_add-3.png ... OK
+    lab2_add-4.png ... OK
+    lab2_add-5.png ... OK
+    lab2_list-1.png ... OK
+    lab2_list-2.png ... OK
+    lab2_list-3.png ... OK
+    lab2_list-4.png ... OK
+... checking for required Make targets
+    Makefile target clean ... OK
+    Makefile target tests ... OK
+    Makefile target graphs ... OK
+    Makefile target dist ... OK
+... checking for required compillation options
+    Makefile includes Wall ... OK
+    Makefile includes Wextra ... OK
+... building default target(s)
+    RC=0 ... OK
+    error output ...  NONE
+... deleting all data and graphs to force rebuild
+... checking make dist
+lab2_add.c
+lab2_list.c
+SortedList.h
+SortedList.c
+Makefile
+README
+lab2_add.gp
+lab2_list.gp
+lab2_add.csv
+lab2_list.csv
+lab2_add-1.png
+lab2_add-2.png
+lab2_add-3.png
+lab2_add-4.png
+lab2_add-5.png
+lab2_list-1.png
+lab2_list-2.png
+lab2_list-3.png
+lab2_list-4.png
+    RC=0 ... OK
+    lab2a-405110096.tar.gz ... OK
+ ... checking make clean
+    RC=0 ... OK
+/tmp/DIRSNAP.8641 /tmp/DIRCHECK.8641 differ: byte 14, line 3
+Incorrect directory contents:
+3,7d2
+< lab2_add-1.png
+< lab2_add-2.png
+< lab2_add-3.png
+< lab2_add-4.png
+< lab2_add-5.png
+9d3
+< lab2_add.csv
+11,14d4
+< lab2_list-1.png
+< lab2_list-2.png
+< lab2_list-3.png
+< lab2_list-4.png
+16d5
+< lab2_list.csv
+... redo default make
+    RC=0 ... OK
+    error output ...  NONE
+... checking for expected products
+    ./lab2_add ... OK
+    ./lab2_list ... OK
+... ./lab2_add detects/reports bogus arguments
+    RC=1 ... OK
+        ././lab2_add: unrecognized option '--bogus'
+Error: Invalid arguments
+... ./lab2_list detects/reports bogus arguments
+    RC=1 ... OK
+        ././lab2_list: unrecognized option '--bogus'
+Error: Invalid arguments
+... testing ./lab2_add --iterations=2 --threads=1 --yield --sync=m
+    RC=0 ... OK
+        number of fields: 7 ... OK
+        output tag (field 1): add-yield-m ... OK
+        threads (field 2): 1 ... OK
+        iterations (field 3): 2 ... OK
+        operations (field 4): 4 ... OK
+        time/run (field 5): 153394 ... PLAUSIBLE, (EXPECTED 2-10000000)
+        time/op (field 6): 38348 ... PLAUSIBLE, (EXPECTED 38347-38349)
+        sum (field 7): 0 ... OK
+... testing ./lab2_add --iterations=2 --threads=1 --yield --sync=c
+    RC=0 ... OK
+        number of fields: 7 ... OK
+        output tag (field 1): add-yield-c ... OK
+        threads (field 2): 1 ... OK
+        iterations (field 3): 2 ... OK
+        operations (field 4): 4 ... OK
+        time/run (field 5): 162220 ... PLAUSIBLE, (EXPECTED 2-10000000)
+        time/op (field 6): 40555 ... PLAUSIBLE, (EXPECTED 40554-40556)
+        sum (field 7): 0 ... OK
+... testing ./lab2_add --iterations=2 --threads=1 --yield --sync=s
+    RC=0 ... OK
+        number of fields: 7 ... OK
+        output tag (field 1): add-yield-s ... OK
+        threads (field 2): 1 ... OK
+        iterations (field 3): 2 ... OK
+        operations (field 4): 4 ... OK
+        time/run (field 5): 154170 ... PLAUSIBLE, (EXPECTED 2-10000000)
+        time/op (field 6): 38542 ... PLAUSIBLE, (EXPECTED 38541-38543)
+        sum (field 7): 0 ... OK
+... testing ./lab2_list --iterations=2 --threads=1 --yield=idl --sync=m
+    RC=0 ... OK
+        number of fields: 7 ... OK
+        output tag (field 1): list-idl-m ... OK
+        threads (field 2): 1 ... OK
+        iterations (field 3): 2 ... OK
+        lists (field 4): 1 ... OK
+        operations (field 5): 6 ... OK
+        time/run (field 6): 143150 ... PLAUSIBLE, (EXPECTED 2-10000000)
+        time/op (field 7): 23858 ... PLAUSIBLE, (EXPECTED 23857-23859)
+... testing ./lab2_list --iterations=2 --threads=1 --yield=idl --sync=s
+    RC=0 ... OK
+        number of fields: 7 ... OK
+        output tag (field 1): list-idl-s ... OK
+        threads (field 2): 1 ... OK
+        iterations (field 3): 2 ... OK
+        lists (field 4): 1 ... OK
+        operations (field 5): 6 ... OK
+        time/run (field 6): 149158 ... PLAUSIBLE, (EXPECTED 2-10000000)
+        time/op (field 7): 24859 ... PLAUSIBLE, (EXPECTED 24858-24860)
+... usage of expected library functions
+    ... sched_yield ... OK
+    ... pthread_mutex_lock ... OK
+    ... pthread_mutex_unlock ... OK
+    ... __sync_val_compare_and_swap ... OK
+    ... __sync_lock_test_and_set ... OK
+    ... __sync_lock_release ... OK
+
+THIS SUBMISSION WILL USE NO SLIP-DAYS
+
+THE ONLY STUDENTS WHO WILL RECEIVE CREDIT FOR THIS SUBMISSION ARE:
+    405110096    prithvi.kannan@gmail.com
+
+... cleaning up temporary files
+... removing test directory /u/ee/ugrad/prithvik/Documents/cs111/Project2A/CS111_test.prithvik
+
+SUBMISSION lab2a-405110096.tar.gz ... FAILS sanity check with 1 errors
+[prithvik@lnxsrv09 ~/Documents/cs111/Project2A]$f

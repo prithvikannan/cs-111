@@ -790,7 +790,6 @@
 - How to add locks for high performance 
 - Concurrent counters
   - Adds a single lock at the start of routine, release at the end
-  - 
 
   
 

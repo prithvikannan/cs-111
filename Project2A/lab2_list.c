@@ -16,6 +16,7 @@
 
 SortedList_t head;
 SortedListElement_t* elements;
+SortedList_t* list;
 
 long threads;
 long iterations;
@@ -27,6 +28,7 @@ char deleteArg;
 char lookupArg;
 
 int lock = 0;
+
 pthread_mutex_t mutexLock;
 
 void segfault() {
@@ -199,27 +201,20 @@ int main(int argc, char* argv[]) {
 	if (elements == NULL) {
 		fprintf(stderr, "Error: Unable to malloc\n");
 		exit(1);
-	}
+    }
 
-	char** keys = malloc(iterations * threads * sizeof(char*));
-	if (keys == NULL) {
-		fprintf(stderr, "Error: Unable to malloc\n");
-		exit(1);
-	}
+    long i;
 
-    long i, j;
     i = 0;
     while ((unsigned) i < numElements) {
-		keys[i] = malloc(sizeof(char) * 256);
-		if (keys[i] == NULL) {
+        char* key = malloc(2 * sizeof(char));
+        if (key == NULL) {
             fprintf(stderr, "Error: Unable to malloc\n");
             exit(1);
-		}
-		for (j = 0; j < 255; j++) {
-			keys[i][j] = rand() % 94 + 33;
-		}
-		keys[i][255] = '\0';
-		(elements + i)->key = keys[i];
+        }
+        key[0] = rand() % 26 + 'A';
+        key[1] = '\0';
+        elements[i].key = key;
         i++;
 	}
 

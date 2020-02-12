@@ -297,7 +297,7 @@ graphs: clean tests
 	./lab2_list.gp
 
 clean:
-	rm -rf lab2_add lab2_list *.o *.tar.gz
+	rm -rf lab2_add lab2_list *.o *.tar.gz *.png *.csv
 
 dist: clean graphs
 	tar -czvf lab2a-405110096.tar.gz lab2_add.c lab2_list.c SortedList.h SortedList.c Makefile README *.gp *.csv *.png 
