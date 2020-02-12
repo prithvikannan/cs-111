@@ -19,27 +19,29 @@
  * @param SortedList_t *list ... header for the list
  * @param SortedListElement_t *element ... element to be added to the list
  */
-void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
+void SortedList_insert(SortedList_t *list, SortedListElement_t *element)
+{
 
-  if (!list|| !element) {
+  if (!list || !element)
+  {
     return;
   }
-  
-  SortedList_t* ptr = list->next;
-  while (ptr != list && strcmp(element->key, ptr->key) > 0) {
+
+  SortedList_t *ptr = list->next;
+  while (ptr != list && strcmp(element->key, ptr->key) > 0)
+  {
     ptr = ptr->next;
   }
 
-  if (opt_yield && INSERT_YIELD) {
+  if (opt_yield && INSERT_YIELD)
+  {
     sched_yield();
   }
 
-
-    element->prev = ptr->prev;
-    element->next = ptr;
-    ptr->prev->next = element;
-    ptr->prev = element;
-  
+  element->prev = ptr->prev;
+  element->next = ptr;
+  ptr->prev->next = element;
+  ptr->prev = element;
 }
 /**
  * SortedList_delete ... remove an element from a sorted list
@@ -55,20 +57,21 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
  * @return 0: element deleted successfully, 1: corrtuped prev/next pointers
  *
  */
-int SortedList_delete( SortedListElement_t *element) {
+int SortedList_delete(SortedListElement_t *element)
+{
 
-  if (opt_yield && DELETE_YIELD) {
+  if (opt_yield && DELETE_YIELD)
+  {
     sched_yield();
   }
-  
-  if (element && element->prev->next && element->next->prev) {
+
+  if (element && element->prev->next && element->next->prev)
+  {
     element->prev->next = element->next;
     element->next->prev = element->prev;
     return 0;
   }
-return 1;
-  
-  
+  return 1;
 }
 
 /**
@@ -82,18 +85,23 @@ return 1;
  *
  * @return pointer to matching element, or NULL if none is found
  */
-SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
+SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key)
+{
 
-  if (!list || !key ) {
+  if (!list || !key)
+  {
     return NULL;
   }
 
   SortedListElement_t *ptr = list->next;
-  while (ptr != list) {
-    if (strcmp(ptr->key, key) == 0) {
+  while (ptr != list)
+  {
+    if (strcmp(ptr->key, key) == 0)
+    {
       return ptr;
     }
-    if (opt_yield && LOOKUP_YIELD) {
+    if (opt_yield && LOOKUP_YIELD)
+    {
       sched_yield();
     }
     ptr = ptr->next;
@@ -110,16 +118,20 @@ SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
  * @return int number of elements in list (excluding head)
  *	   -1 if the list is corrupted
  */
-int SortedList_length(SortedList_t *list) {
+int SortedList_length(SortedList_t *list)
+{
 
-  if (!list) {
+  if (!list)
+  {
     return -1;
   }
 
   int len = 0;
   SortedListElement_t *ptr = list->next;
-  while (ptr != list) {
-    if (opt_yield && LOOKUP_YIELD) {
+  while (ptr != list)
+  {
+    if (opt_yield && LOOKUP_YIELD)
+    {
       sched_yield();
     }
     len++;

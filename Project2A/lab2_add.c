@@ -19,26 +19,30 @@ long iterations;
 int opt_yield;
 char syncArg;
 int lock = 0;
-pthread_mutex_t mutexLock; 
+pthread_mutex_t mutexLock;
 
-void cleanUp(pthread_t *thread_ids) {
+void cleanUp(pthread_t *thread_ids)
+{
     pthread_mutex_destroy(&mutexLock);
     free(thread_ids);
     exit(0);
 }
 
-void print(long *runTime, long *timePerOperation, long *numOperations) {
+void print(long *runTime, long *timePerOperation, long *numOperations)
+{
     char yieldString[7];
     char argString[6];
-    switch (opt_yield) {
+    switch (opt_yield)
+    {
     case 1:
         sprintf(yieldString, "-yield");
         break;
     default:
-        yieldString[0]=0;
+        yieldString[0] = 0;
         break;
     }
-    switch (syncArg) {
+    switch (syncArg)
+    {
     case 'm':
         sprintf(argString, "-m");
         break;
@@ -55,49 +59,62 @@ void print(long *runTime, long *timePerOperation, long *numOperations) {
     fprintf(stdout, "add%s%s,%ld,%ld,%ld,%ld,%ld,%lld\n", yieldString, argString, threads, iterations, *(numOperations), *(runTime), *(timePerOperation), counter);
 }
 
-void add(long long *pointer, long long value) {
+void add(long long *pointer, long long value)
+{
     long long sum = *pointer + value;
-    if (opt_yield) {
+    if (opt_yield)
+    {
         sched_yield();
     }
     *pointer = sum;
 }
 
-void add_mutex(long long *pointer, long long value) {
- 	pthread_mutex_lock(&mutexLock);
-  	long long sum = *pointer + value;
-  	if (opt_yield) {
-   		sched_yield();
-	}
- 	*pointer = sum;
-  	pthread_mutex_unlock(&mutexLock);
-}
-
-void add_spin(long long *pointer, long long value) {
-	while (__sync_lock_test_and_set(&lock, 1));
-	long long sum = *pointer + value;
-	if (opt_yield) {
+void add_mutex(long long *pointer, long long value)
+{
+    pthread_mutex_lock(&mutexLock);
+    long long sum = *pointer + value;
+    if (opt_yield)
+    {
         sched_yield();
     }
-  	*pointer = sum;
+    *pointer = sum;
+    pthread_mutex_unlock(&mutexLock);
+}
+
+void add_spin(long long *pointer, long long value)
+{
+    while (__sync_lock_test_and_set(&lock, 1))
+        ;
+    long long sum = *pointer + value;
+    if (opt_yield)
+    {
+        sched_yield();
+    }
+    *pointer = sum;
     __sync_lock_release(&lock);
 }
 
-void add_cas(long long *pointer, long long value) {
-	long long oldVal;
-	do {
-		oldVal = counter;
-        if (opt_yield) {
+void add_cas(long long *pointer, long long value)
+{
+    long long oldVal;
+    do
+    {
+        oldVal = counter;
+        if (opt_yield)
+        {
             sched_yield();
         }
-  	} while (__sync_val_compare_and_swap(pointer, oldVal, oldVal+value) != oldVal);
+    } while (__sync_val_compare_and_swap(pointer, oldVal, oldVal + value) != oldVal);
 }
 
-void* make_threads(void* arg) {
-	long i;	
+void *make_threads(void *arg)
+{
+    long i;
     i = 0;
-    while (i < iterations) {
-        switch (syncArg) {
+    while (i < iterations)
+    {
+        switch (syncArg)
+        {
         case 'm':
             add_mutex(&counter, 1);
             add_mutex(&counter, -1);
@@ -120,20 +137,20 @@ void* make_threads(void* arg) {
         add(&counter, 1);
         add(&counter, -1);
         i++;
-	}
-	return arg;
+    }
+    return arg;
 }
 
-int main(int argc, char* argv[]) {
-	threads = 1;
-	iterations = 1;
-	struct option args[] = {
-		{"threads", required_argument, NULL, 't'},
-		{"iterations", required_argument, NULL, 'i'},
-		{"yield", no_argument, NULL, 'y'},
-		{"sync", required_argument, NULL, 's'},
-		{0, 0, 0, 0}
-	};
+int main(int argc, char *argv[])
+{
+    threads = 1;
+    iterations = 1;
+    struct option args[] = {
+        {"threads", required_argument, NULL, 't'},
+        {"iterations", required_argument, NULL, 'i'},
+        {"yield", no_argument, NULL, 'y'},
+        {"sync", required_argument, NULL, 's'},
+        {0, 0, 0, 0}};
 
     char param;
     syncArg = 0;
@@ -167,38 +184,41 @@ int main(int argc, char* argv[]) {
     counter = 0;
 
     struct timespec startTime, endTime;
-	clock_gettime(CLOCK_MONOTONIC, &startTime);
+    clock_gettime(CLOCK_MONOTONIC, &startTime);
 
-	pthread_t *thread_ids = malloc(threads * sizeof(pthread_t));
-	if (thread_ids == NULL) {
-		fprintf(stderr, "Error: Unable to malloc\n");
-		exit(1);
-	}
+    pthread_t *thread_ids = malloc(threads * sizeof(pthread_t));
+    if (thread_ids == NULL)
+    {
+        fprintf(stderr, "Error: Unable to malloc\n");
+        exit(1);
+    }
 
     int i;
     i = 0;
-    while (i < threads) {
-		if (pthread_create(&thread_ids[i], NULL, &make_threads, NULL) != 0) {
-			fprintf(stderr, "Error: Unable to make threads\n");
-			exit(1);
-		}
+    while (i < threads)
+    {
+        if (pthread_create(&thread_ids[i], NULL, &make_threads, NULL) != 0)
+        {
+            fprintf(stderr, "Error: Unable to make threads\n");
+            exit(1);
+        }
         i++;
-	}
+    }
 
     i = 0;
-    while (i < threads) {
-		pthread_join(thread_ids[i], NULL);
+    while (i < threads)
+    {
+        pthread_join(thread_ids[i], NULL);
         i++;
-	}
+    }
 
-	clock_gettime(CLOCK_MONOTONIC, &endTime);
+    clock_gettime(CLOCK_MONOTONIC, &endTime);
 
     long numOperations = threads * iterations * 2;
-	long runTime = 1000000000L * (endTime.tv_sec - startTime.tv_sec) + endTime.tv_nsec - startTime.tv_nsec;
-	long timePerOperation = runTime / numOperations;
+    long runTime = 1000000000L * (endTime.tv_sec - startTime.tv_sec) + endTime.tv_nsec - startTime.tv_nsec;
+    long timePerOperation = runTime / numOperations;
 
     print(&runTime, &timePerOperation, &numOperations);
 
     cleanUp(thread_ids);
-
 }

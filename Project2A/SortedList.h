@@ -16,14 +16,14 @@
  * NOTE: This header file is an interface specification, and you
  *       are not allowed to make any changes to it.
  */
-struct SortedListElement {
+struct SortedListElement
+{
 	struct SortedListElement *prev;
 	struct SortedListElement *next;
 	const char *key;
 };
 typedef struct SortedListElement SortedList_t;
 typedef struct SortedListElement SortedListElement_t;
-
 
 /**
  * SortedList_insert ... insert an element into a sorted list
@@ -51,7 +51,7 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element);
  * @return 0: element deleted successfully, 1: corrtuped prev/next pointers
  *
  */
-int SortedList_delete( SortedListElement_t *element);
+int SortedList_delete(SortedListElement_t *element);
 
 /**
  * SortedList_lookup ... search sorted list for a key
@@ -81,6 +81,6 @@ int SortedList_length(SortedList_t *list);
  * variable to enable diagnositc yield calls
  */
 extern int opt_yield;
-#define	INSERT_YIELD	0x01	// yield in insert critical section
-#define	DELETE_YIELD	0x02	// yield in delete critical section
-#define	LOOKUP_YIELD	0x04	// yield in lookup/length critical esction
+#define INSERT_YIELD 0x01 // yield in insert critical section
+#define DELETE_YIELD 0x02 // yield in delete critical section
+#define LOOKUP_YIELD 0x04 // yield in lookup/length critical esction
