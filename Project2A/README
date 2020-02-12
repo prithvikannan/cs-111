@@ -51,4 +51,20 @@ Cost of yielding
     is it possible to get valid per-op timings if we are using --yield
         time of op + time of context switch go together
 
-    
+2.1.1
+If a thread can complete its steps before a context switch to another thread, then there will be no conflicts. However, if threads are switched while a thread is still executing, that will result in a race condition. For this reason, we rarely see errors for 1, 10, or 100 iterations. 
+
+2.1.2
+The yield runs are slower because of the additional time spent on context switching between processes. This involves saving the registers and state, which costs time. We cannot find the per-operation timing if we yield since we are getting the time of the operation and context switch together. It's impossible to distinguish those two.
+
+2.1.3
+The average time per iteration drops with increased iterations since the time of a contet switch is amortized over multiple iterations. This is really a flaw in how we are calculating cost per iteration, and has to do with the fact that we cannot separate time of running processes vs time of context switch. If we crank up the iterations very high, then we can make the amortized cost of context switch negligible and get closer to the true cost. Notice the graph flattens out as we increase iterations. 
+
+2.1.4
+If number of threads are lower, then there will be less total critical sections so the impact of the lock is less, since less threads are trying to access the same resources. All three protected operations slow down as the number of threads rises since the number of critical sections increases and more threads need to wait for resources to become available. 
+
+2.2.1
+The variation in time per mutex-protected operation vs threads in part 1 and part 2 are similar, but part 2 increased faster because there were more operations (adding/removing from a list versus adding and subtracting a variable)
+
+2.2.2
+Both graphs have postive slope, since the time per protected operation increases with the number of threads. However, the slope of the spinlock curve is more than that of the mutex curve since the mutex lock is a library function (and is therefore optimized), while I had to use system calls to implement the mutex function. Also, for spinlock, the CPU will allocate time to a spinning thread, but those threads will be adding significant runtime to the program, while mutex locked threads that don't currently own the lock will just be skipped. 

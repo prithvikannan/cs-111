@@ -3,42 +3,41 @@
 // ID: 405110096
 
 #include <stdio.h>
-#include <errno.h>
-#include <unistd.h>
-#include <getopt.h>
-#include <signal.h>
 #include <stdlib.h>
-#include <pthread.h>
-#include <string.h>
+#include <getopt.h>
 #include <time.h>
-#include <sched.h>
+#include <string.h>
+#include <pthread.h>
+#include <signal.h>
 #include "SortedList.h"
 
-SortedList_t head;
+long long threads = 1;
+long long iterations = 1;
+int yieldFlag = 0;
+
 SortedListElement_t* elements;
-SortedList_t* list;
+SortedList_t* head;
 
-long threads;
-long iterations;
-int opt_yield;
-
-char syncArg;
-char insertArg;
-char deleteArg;
-char lookupArg;
-
-int lock = 0;
+char syncArg = NULL;
+int insertArg;
+int deleteArg;
+int lookupArg;
 
 pthread_mutex_t mutexLock;
+int spinLock = 0;
+
+int opt_yield = 0;
 
 void segfault() {
 	fprintf(stderr, "Error: segfault\n");
 	exit(2);
 }
 
-void cleanUp(pthread_t *thread_ids, SortedListElement_t* elements) {
+void cleanUp(pthread_t *thread_ids, int* thread_positions, SortedListElement_t* elements, SortedList_t* head) {
     pthread_mutex_destroy(&mutexLock);
     free(thread_ids);
+    free(thread_positions);
+    free(head);
     free(elements);
     exit(0);
 }
@@ -77,73 +76,90 @@ void print(long *runTime, long *timePerOperation, long *numOperations) {
     fprintf(stdout, "list%s%s,%ld,%ld,%d,%ld,%ld,%ld\n", yieldString, argString, threads, iterations, numLists, *(numOperations), *(runTime), *(timePerOperation));
 }
 
-void* thread_function(void *stuff) {
-	SortedListElement_t* array = stuff;
-    switch (syncArg) {
-    case 'm':
-        pthread_mutex_lock(&mutexLock);
-        break;
-    case 's':
-        while (__sync_lock_test_and_set(&lock, 1));
-        break;
+void* newThreadFunction(void* position) {
+
+  int start = *((int*) position);
+  for (int i = start; i < start + iterations; i++) {
+
+    if (syncArg == NULL) {
+      SortedList_insert(head, &elements[i]);
     }
-
-	long i;
-    i = 0;
-    while (i < iterations) {
-		SortedList_insert(&head, (SortedListElement_t *) (array+i));
-        i++;
-	}
-
-	long len = SortedList_length(&head);
-	if (len < iterations) {
-        fprintf(stderr, "Error: not all in list\n");
-		exit(2);
-	}
-
-	char *curr = malloc(sizeof(char)*256);
-
-	SortedListElement_t *ptr;
-    i = 0;
-    while (i < iterations) {
-		strcpy(curr, (array+i)->key);
-        ptr = SortedList_lookup(&head, curr);
-        if (ptr == NULL) {
-            fprintf(stderr, "Error: unable to lookup\n");
-            exit(2);
-        }
-
-		if ((SortedList_delete(ptr)) != 0) {
-            fprintf(stderr, "Error: unable to delete\n");
-            exit(2);
-        }
-        i++;
-	}
-
-    switch (syncArg) {
-    case 'm':
-        pthread_mutex_unlock(&mutexLock);
-        break;
-    case 's':
-        __sync_lock_release(&lock);
-        break;
+    else if (syncArg == 'm') {
+      pthread_mutex_lock(&mutexLock);
+      SortedList_insert(head, &elements[i]);
+      pthread_mutex_unlock(&mutexLock);
     }
+    else if (syncArg == 's') {
+      while (__sync_lock_test_and_set(&spinLock, 1)) {
+        continue;
+      }
+      SortedList_insert(head, &elements[i]);
+      __sync_lock_release(&spinLock);
+    }
+  }
+  
+  int length = 0;
+  switch (syncArg) {
+  case 'm':
+    pthread_mutex_lock(&mutexLock);
+    length = SortedList_length(head);
+    pthread_mutex_unlock(&mutexLock);
+    break;
+  case 's':
+    while (__sync_lock_test_and_set(&spinLock, 1)) {
+      continue;
+    }
+    length = SortedList_length(head);
+    __sync_lock_release(&spinLock);
+    break;
+  default:
+    length = SortedList_length(head);
+    break;
+  }
+  if (length < 0) {
+    fprintf(stderr, "Error: length is negative\n");
+    exit(1);
+  }
 
-    return NULL;
+  for (int i = start; i < start + iterations; i++) {
+    if (syncArg == NULL) {
+      if (SortedList_delete(SortedList_lookup(head, elements[i].key))) {
+        fprintf(stderr, "Error: could not delete list element\n");
+      }
+    }
+    else if (syncArg == 'm') {
+      pthread_mutex_lock(&mutexLock);
+      if (SortedList_delete(SortedList_lookup(head, elements[i].key))) {
+        fprintf(stderr, "Error: could not delete list element\n");
+      }
+      pthread_mutex_unlock(&mutexLock);
+    }
+    else if (syncArg == 's') {
+      while (__sync_lock_test_and_set(&spinLock, 1)) {
+	continue;
+      }
+      if (SortedList_delete(SortedList_lookup(head, elements[i].key))) {
+	fprintf(stderr, "Error: could not delete list element\n");
+      }
+      __sync_lock_release(&spinLock);
+    }
+  }
+  
+  return NULL;
 }
 
-int main(int argc, char* argv[]) {
-	threads = 1;
-	iterations = 1;
-    opt_yield = 0;
-	struct option args[] = {
-		{"threads", required_argument, NULL, 't'},
-		{"iterations", required_argument, NULL, 'i'},
-		{"yield", required_argument, NULL, 'y'},
-		{"sync", required_argument, NULL, 's'},
-		{0, 0, 0, 0}
-	};
+int main(int argc, char **argv){
+    signal(SIGSEGV, segfault);
 
+  opterr = 0; // suppress automatic stock error message
+
+  static struct option args[] = {
+    {"threads", required_argument, 0, 't'},
+    {"iterations", required_argument, 0, 'i'},
+    {"yield", required_argument, 0, 'y'},
+    {"sync", required_argument, 0, 's'},
+    {0, 0, 0, 0}
+  };
     char param;
     syncArg = 0;
     insertArg = 0;
@@ -175,10 +191,12 @@ int main(int argc, char* argv[]) {
                         continue;
                     case 'd':
                         opt_yield |= DELETE_YIELD;
+
                         deleteArg = 1;
                         continue;
                     case 'l':
                         opt_yield |= LOOKUP_YIELD;
+
                         lookupArg = 1;
                         continue;
                     }
@@ -193,67 +211,60 @@ int main(int argc, char* argv[]) {
             exit(1);
         }
     }
+  
 
-    signal(SIGSEGV, segfault);
+  head = malloc(sizeof(SortedList_t));
+  head->key = NULL;
+  head->next = head->prev = head;
+	
+  int numElements = threads * iterations;
+  elements = malloc(numElements * sizeof(SortedListElement_t));
+  srand((unsigned int) time(NULL));
+  int i;
+  i = 0;
+  while (i < numElements){
+    char* key = malloc(2 * sizeof(char));
+    key[0] = rand() % 26 + 'A';
+    key[1] = '\0';
+    elements[i].key = key;
+    i++;
+  }
 
-	unsigned long numElements = threads * iterations;
-	elements = malloc(sizeof(SortedListElement_t) * numElements);
-	if (elements == NULL) {
-		fprintf(stderr, "Error: Unable to malloc\n");
-		exit(1);
-    }
+  struct timespec startTime;
+  clock_gettime(CLOCK_MONOTONIC, &startTime);
 
-    long i;
-
-    i = 0;
-    while ((unsigned) i < numElements) {
-        char* key = malloc(2 * sizeof(char));
-        if (key == NULL) {
-            fprintf(stderr, "Error: Unable to malloc\n");
-            exit(1);
-        }
-        key[0] = rand() % 26 + 'A';
-        key[1] = '\0';
-        elements[i].key = key;
-        i++;
-	}
-
-	if (syncArg == 'm' && pthread_mutex_init(&mutexLock, NULL) != 0) {
-        fprintf(stderr, "Error: Unable to create mutuex\n");
-        exit(1);
-  	}
-
-    pthread_t *thread_ids = malloc(sizeof(pthread_t) * threads);
-    if (thread_ids == NULL) {
-        fprintf(stderr, "Error: Unable to malloc\n");
-        exit(1);
-    }
-
-    struct timespec startTime, endTime;
-  	clock_gettime(CLOCK_MONOTONIC, &startTime);
-
-    i = 0;
-    while (i < threads) {
-  		if (pthread_create(&thread_ids[i], NULL, &thread_function, (void *) (elements + iterations * i)) != 0) {
+  pthread_t *thread_ids = malloc(threads * sizeof(pthread_t));
+  int *thread_positions = malloc(threads * sizeof(int));
+	
+  i=0;
+  while (i < threads) {
+    if (pthread_create(&thread_ids[i], NULL, newThreadFunction, &thread_positions[i])){
 			fprintf(stderr, "Error: Unable to make threads\n");
 			exit(1);
 		}
-        i++;
+    i++;
 	}
 
-    i = 0;
-    while (i < threads) {
-		pthread_join(thread_ids[i], NULL);
-        i++;
-	}
+  i=0;
+  while (i < threads){
+    pthread_join(thread_ids[i], NULL);
+    i++;
+  }
+	
+  struct timespec endTime;
+  clock_gettime(CLOCK_MONOTONIC, &endTime);
 
-  	clock_gettime(CLOCK_MONOTONIC, &endTime);
+  int listLength = SortedList_length(head);
+  if (listLength != 0) {
+    fprintf(stderr, "Error: list length is not zero\n");
+    exit(2);
+  }
+	
+  long long runTime = (endTime.tv_sec - startTime.tv_sec)*1000000000 + (endTime.tv_nsec - startTime.tv_nsec);
+  long long  numOperations = 3 * threads * iterations;
+  long timePerOperation = runTime/numOperations;
 
-    long numOperations = threads * iterations * 3;
-	long runTime = 1000000000L * (endTime.tv_sec - startTime.tv_sec) + endTime.tv_nsec - startTime.tv_nsec;
-	long timePerOperation = runTime / numOperations;
-
-    print(&runTime, &timePerOperation, &numOperations);
-
-    cleanUp(thread_ids, elements);
+  print(&runTime, &timePerOperation, &numOperations);
+  cleanUp(thread_ids, thread_positions, elements, head);
 }
+
