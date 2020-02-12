@@ -2,20 +2,16 @@
 #EMAIL: prithvi.kannan@gmail.com
 #ID: 405110096
 
-CC = gcc
-CFLAGS = -g -lrt -pthread -o
-
 .SILENT:
 
 default: build
 
 build:
-	$(CC) $(CFLAGS) lab2_add -Wall -Wextra lab2_add.c
-	$(CC) -g -lrt -pthread -Wall -Wextra SortedList.c -o lab2_list lab2_list.c
+	gcc -g -lrt -pthread -o lab2_add -Wall -Wextra lab2_add.c
+	gcc -g -lrt -pthread -Wall -Wextra SortedList.c -o lab2_list lab2_list.c
 
 tests: build
 
-	# add
 	./lab2_add --threads=1 --iterations=100 > lab2_add.csv
 	./lab2_add --threads=1 --iterations=1000 >> lab2_add.csv
 	./lab2_add --threads=1 --iterations=10000 >> lab2_add.csv
@@ -37,7 +33,6 @@ tests: build
 	./lab2_add --threads=12 --iterations=10000 >> lab2_add.csv
 	./lab2_add --threads=12 --iterations=100000 >> lab2_add.csv
 
-	# lab2_add-1.png
 	./lab2_add --threads=1 --iterations=10 --yield >> lab2_add.csv
 	./lab2_add --threads=1 --iterations=20 --yield >> lab2_add.csv
 	./lab2_add --threads=1 --iterations=40 --yield >> lab2_add.csv
@@ -79,14 +74,12 @@ tests: build
 	./lab2_add --threads=12 --iterations=10000 --yield >> lab2_add.csv
 	./lab2_add --threads=12 --iterations=100000 --yield >> lab2_add.csv
 
-	# lab3_add-3.png
 	./lab2_add --threads=1 --iterations=10 >> lab2_add.csv
 	./lab2_add --threads=1 --iterations=100 >> lab2_add.csv
 	./lab2_add --threads=1 --iterations=1000 >> lab2_add.csv
 	./lab2_add --threads=1 --iterations=10000 >> lab2_add.csv
 	./lab2_add --threads=1 --iterations=100000 >> lab2_add.csv
 
-	# lab2_add-2.png
 	./lab2_add --threads=1 --iterations=100 >> lab2_add.csv
 	./lab2_add --threads=1 --iterations=1000 >> lab2_add.csv
 	./lab2_add --threads=1 --iterations=10000 >> lab2_add.csv
@@ -120,7 +113,6 @@ tests: build
 	./lab2_add --threads=8 --iterations=10000 --yield >> lab2_add.csv
 	./lab2_add --threads=8 --iterations=100000 --yield >> lab2_add.csv
 
-	# lab2_add-4.png
 	./lab2_add --threads=2 --iterations=10000 --yield --sync='m' >> lab2_add.csv
 	./lab2_add --threads=4 --iterations=10000 --yield --sync='m' >> lab2_add.csv
 	./lab2_add --threads=8 --iterations=10000 --yield --sync='m' >> lab2_add.csv
@@ -134,7 +126,6 @@ tests: build
 	./lab2_add --threads=8 --iterations=10000 --yield --sync='c' >> lab2_add.csv
 	./lab2_add --threads=12 --iterations=10000 --yield --sync='c' >> lab2_add.csv
 
-	# lab2_add-5.png
 	./lab2_add --threads=1 --iterations=10000 >> lab2_add.csv
 	./lab2_add --threads=2 --iterations=10000 >> lab2_add.csv
 	./lab2_add --threads=4 --iterations=10000 >> lab2_add.csv
@@ -156,14 +147,12 @@ tests: build
 	./lab2_add --threads=8 --iterations=10000 --sync='c' >> lab2_add.csv
 	./lab2_add --threads=12 --iterations=10000 --sync='c' >> lab2_add.csv
 
-	# lab2_list-1.png
 	./lab2_list --threads=1 --iterations=10 > lab2_list.csv
 	./lab2_list --threads=1 --iterations=100 >> lab2_list.csv
 	./lab2_list --threads=1 --iterations=1000 >> lab2_list.csv
 	./lab2_list --threads=1 --iterations=10000 >> lab2_list.csv
 	./lab2_list --threads=1 --iterations=20000 >> lab2_list.csv
 
-	# lab2_list-2.png
 	-./lab2_list --threads=2 --iterations=1 >> lab2_list.csv
 	-./lab2_list --threads=2 --iterations=10 >> lab2_list.csv
 	-./lab2_list --threads=2 --iterations=100 >> lab2_list.csv
@@ -265,7 +254,6 @@ tests: build
 	-./lab2_list --threads=12 --iterations=8 --yield=dl >> lab2_list.csv
 	-./lab2_list --threads=12 --iterations=16 --yield=dl >> lab2_list.csv
 
-	# lab2_list-3.png
 	./lab2_list --threads=12 --iterations=32 --yield=i --sync=m >> lab2_list.csv
 	./lab2_list --threads=12 --iterations=32 --yield=d --sync=m >> lab2_list.csv
 	./lab2_list --threads=12 --iterations=32 --yield=il --sync=m >> lab2_list.csv
@@ -275,7 +263,6 @@ tests: build
 	./lab2_list --threads=12 --iterations=32 --yield=il --sync=s >> lab2_list.csv
 	./lab2_list --threads=12 --iterations=32 --yield=dl --sync=s >> lab2_list.csv
 
-	# lab2_list-4.png
 	./lab2_list --threads=1 --iterations=1000 >> lab2_list.csv
 	./lab2_list --threads=1 --iterations=1000 --sync=m >> lab2_list.csv
 	./lab2_list --threads=2 --iterations=1000 --sync=m >> lab2_list.csv

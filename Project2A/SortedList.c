@@ -21,13 +21,13 @@
  */
 void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
 
-  if (list == NULL || element == NULL) {
+  if (!list|| !element) {
     return;
   }
   
-  SortedList_t* temp = list->next;
-  while (temp != list && strcmp(element->key, temp->key) > 0) {
-    temp = temp->next;
+  SortedList_t* ptr = list->next;
+  while (ptr != list && strcmp(element->key, ptr->key) > 0) {
+    ptr = ptr->next;
   }
 
   if (opt_yield && INSERT_YIELD) {
@@ -35,10 +35,10 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element) {
   }
 
 
-    element->prev = temp->prev;
-    element->next = temp;
-    temp->prev->next = element;
-    temp->prev = element;
+    element->prev = ptr->prev;
+    element->next = ptr;
+    ptr->prev->next = element;
+    ptr->prev = element;
   
 }
 /**
@@ -61,14 +61,13 @@ int SortedList_delete( SortedListElement_t *element) {
     sched_yield();
   }
   
-  if (element != NULL && element->prev->next != NULL && element->next->prev != NULL) {
+  if (element && element->prev->next && element->next->prev) {
     element->prev->next = element->next;
     element->next->prev = element->prev;
     return 0;
   }
-  else {
-    return 1;
-  }
+return 1;
+  
   
 }
 
@@ -85,24 +84,21 @@ int SortedList_delete( SortedListElement_t *element) {
  */
 SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
 
-  if (list == NULL || key == NULL) {
+  if (!list || !key ) {
     return NULL;
   }
 
-  SortedListElement_t *temp = list->next;
-  
-  while (temp != list) {
-    if (strcmp(temp->key, key) == 0) {
-      return temp;
+  SortedListElement_t *ptr = list->next;
+  while (ptr != list) {
+    if (strcmp(ptr->key, key) == 0) {
+      return ptr;
     }
     if (opt_yield && LOOKUP_YIELD) {
       sched_yield();
     }
-    temp = temp->next;
+    ptr = ptr->next;
   }
-
   return NULL;
-  
 }
 
 /**
@@ -116,20 +112,18 @@ SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key) {
  */
 int SortedList_length(SortedList_t *list) {
 
-  if (list == NULL) {
+  if (!list) {
     return -1;
   }
 
-  int counter = 0;
-  SortedListElement_t *temp = list->next;
-  while (temp != list) {
+  int len = 0;
+  SortedListElement_t *ptr = list->next;
+  while (ptr != list) {
     if (opt_yield && LOOKUP_YIELD) {
       sched_yield();
     }
-    counter++;
-    temp = temp->next;
+    len++;
+    ptr = ptr->next;
   }
-
-  return counter;
-  
+  return len;
 }
