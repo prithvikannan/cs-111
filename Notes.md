@@ -100,9 +100,7 @@
   - Without OS intervention...
   - Unless the program makes a system call (hits a trap) and transfers control to the OS
   - To optimize performance, enter the OS as seldom as possible
-- 2 phases to Limited Direct Execution
-      1. Boot mode in which the trap table is initialized by kernel and saved by CPU
-      2. Kernel/User mode: Kernel sets up a few things OS switches between user and kernel mode based on traps/return-to-trap instructions
+- 2 phases to Limited Direct Execution 1. Boot mode in which the trap table is initialized by kernel and saved by CPU 2. Kernel/User mode: Kernel sets up a few things OS switches between user and kernel mode based on traps/return-to-trap instructions
 
 ## Loading a processes
 
@@ -155,14 +153,14 @@
 - All processes in queue are in 'ready' state
 
 ## Context switching
-- Switching from Process A to B
-    1. A is running and has a timer interrupt. It's register's get saved on the kernel stack by the HARDWARE
-    2. The OS switches to kernel mode and goes to the the trap handler
-    3. Calls the switch() routine, in which A's registers are saved by the SOFTWARE into the memory in the process structure of A 
-    4. Restores B's registers from its process structure
-    5. Switches contexts by changing the stack pointer to B's kernel stack 
-    6. Moves back to user mode and runs process B 
 
+- Switching from Process A to B
+  1. A is running and has a timer interrupt. It's register's get saved on the kernel stack by the HARDWARE
+  2. The OS switches to kernel mode and goes to the the trap handler
+  3. Calls the switch() routine, in which A's registers are saved by the SOFTWARE into the memory in the process structure of A
+  4. Restores B's registers from its process structure
+  5. Switches contexts by changing the stack pointer to B's kernel stack
+  6. Moves back to user mode and runs process B
 
 # SCHEDULER
 
@@ -628,7 +626,7 @@
     - MMU sets a reference bit for the page on access
     - Scan whenever we need another page
     - If page is visited, set reference bit to 1
-    - For each page, ask MMU if page has been referenced 
+    - For each page, ask MMU if page has been referenced
       - If so, reset the reference bit in the MMU & skip this page
       - If not, consider this page to be the least recently used
     - Next search starts from this position, not head of list
@@ -753,13 +751,13 @@
 
 ## Threads
 
-- similar to process, but share same address space
-- used with multiprocessor computers 
-  - split up task across multiple CPUs
-- avoids blocking processes due to slow I/O 
-  - another part of the code can be run in the meantime
-- context switch
-  - save registers and PC in thread control block (TCB)
+- Similar to process, but share same address space
+- Used with multiprocessor computers
+  - Split up task across multiple CPUs
+- Avoids blocking processes due to slow I/O
+  - Another part of the code can be run in the meantime
+- Context switch
+  - Save registers and PC in thread control block (TCB)
 
 ## Accessing shared data
 
@@ -767,12 +765,12 @@
   - mov from address to register
   - add 1 to register
   - mov from register to address
-- Critical section: piece of code that accesses a *shared* resource
-- Race condition: multiple threads enter the critical section around the same time, and attempt to use the resource simultaneously 
+- Critical section: piece of code that accesses a _shared_ resource
+- Race condition: multiple threads enter the critical section around the same time, and attempt to use the resource simultaneously
 - If OS scheduler interrupts and switches, those 3 steps may not happen in order
   - Solution: make atomic (as a unit)
     - Use the hardware for synchronization/mutual exclusion primitives
-    
+
 ## Thread API
 
 - pthread_create()
@@ -785,11 +783,98 @@
 - pthread_mutex_unlock
   - Allows other processes to access variable
 
+## Mutual Exclusion
+
+- Critical sections create issues when multiple threads run at the same time
+  - Need to enforce "mutual exlcusion" of critical section
+- Mutual exclusion allows us to create atomicity
+
+1. Before or after atomicity
+   - A enters before B starts, and B enters after A is done
+2. All or none atomicity
+   - Update that starts will complete, uncompleted updates have no effect
+
+## Methods for protecting critical sections
+
+- Turn off interrupt (disable context switch), but no concurrency
+- Hardware atomic CPU instructions
+  - Very limited instructions (read/write of contiguous bytes, increment/decrement, etc.)
+- Software locking
+
 ## Locks
 
-- How to add locks for high performance 
-- Concurrent counters
+- If the thread obtains the lock, then it goes ahead
+- If another thread is occupying the lock, thread must wait
+- Thread will release the lock at the end of critical section
+- Example: Concurrent counters
   - Adds a single lock at the start of routine, release at the end
+- Implementation of locks
+  - Locking and unlocking is itself a critical section
+  - Hardware CPU instruction is atomic
+    - TS, CAS
+- Spin locks
+  - Pros
+    - Properly enforces critical sections
+    - Simple to program
+  - Cons
+    - Wasteful (lots of CPU cycles wasted on no-ops)
+    - Bugs mean infinite loops
+  - Good for certain cases
+    - Awaiting program can operate in paralle
+    - Quickly finishing critical sections
+- Asynchronous Completion Problem
+  - How to add locks for high performance (without spinning)
+    - Parallel code runs at different speeds
+- Yield and spin
+  - Check if event occurred (a few times)
+    - If not, then yield and block yourself
+    - Will be rescheduled soon
+  - Avoids indefinite spinning and reduces waiting time
+  - Problems
+    - More context switches since yielding
+    - Still wasted cycles if spinning when scheduled
+    - Creates unfairness (rescheduling up to scheduler)
+
+## Fairness and mutual exclusion
+
+- Multiple process/thread/machine needing access to a resource
+- Locking requires scheduling algorithm to ensure fairness
+- Threads don't check for locks automatically
+  - Rely on the OS to let you thread know
+- Conditional variables
+  - Synchonization object associatied with a request
+    - Requester blocks and is queued awaiting event on object
+    - Posting event unblocks waiter
+- Waitlist
+  - Shared data structure
+- Who to wake up?
+  - Wake up a single thread
+  - Broadcast and wake up all blocked threads 
+    - May be wasteful, good if there are lots of resources
+- Locking + async events should yield the following benefits...
+  - Effectiveness
+  - Progress
+  - Fairness
+  - Performance
+
+## Semaphores
+- *synchronization platform for multiple processing units*
+- Synchronization choices
+  - Use locks
+    - Spin loops
+    - Primitives that block resources
+- Semaphores
+  - Logically sound way to implement locks
+    - Extra functionality for sync
+- Computational semaphores (Dijkstra)
+  - Use a counter rather than binary flag for locks
+  - FIFO wait queue
+- Operations
+  - P "wait"
+    - Decrement count
+    - if count >=0, return
+    - if count <0, add to queue
+  - V "post/signal"
+    - increment counter
 
   
-
