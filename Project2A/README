@@ -36,20 +36,9 @@ Files Included:
     lab2_add.gp - makes 5 plots for part-1 tests using GNUplot
     lab2_list.gp - makes 4 plots for part-2 tests using GNUplot
     
-Why does it take iterations before errors are seen?
-    example, 12 threads, 2 iteratiosn each will still give the right answers
-    if it takes more time for a thread to be created then it takes for a thread to run, then the threads never bump into one another   
-    if thread 1 is done before thread 2 is started, no problem
-    when iterations go up, thread 1 doesnt finish before thread 2 is created, which creates the issues
-    less iterations -> less chances to go wrong, less threads competing for resources
-
-Cost of yielding
-    why are --yield runs so much slower
-        needs to switch threads 
-    where is the time going
-        context switch (better for threads than process)
-    is it possible to get valid per-op timings if we are using --yield
-        time of op + time of context switch go together
+Notes:
+    I was able to reduce the length of the Makefile by using for loops, but I was not able to figure out how to implement the dash prefix within the loop without getting an error "no file or directory found". As a result, my test cases with a dash are listed out individually.
+    I used this page as a guide. https://stackoverflow.com/questions/30954077/nested-for-loop-in-makefile
 
 2.1.1
 If a thread can complete its steps before a context switch to another thread, then there will be no conflicts. However, if threads are switched while a thread is still executing, that will result in a race condition. For this reason, we rarely see errors for 1, 10, or 100 iterations. 
