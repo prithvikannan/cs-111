@@ -110,24 +110,25 @@ void *newThreadFunction(void *position)
 	while (i < threadStartPosition + iterations)
 	{
 		int listIndex = hash(elements[i].key[0]);
+		fprintf(stdout, "index: %d\n", listIndex);
 		switch (syncArg)
 		{
 		case 'm':
-			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+			// clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
 			pthread_mutex_lock(&mutexLocks[listIndex]);
-			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
-			threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+			// clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+			// threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
 			SortedList_insert(&head[listIndex], &elements[i]);
 			pthread_mutex_unlock(&mutexLocks[listIndex]);
 			break;
 		case 's':
-			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+			// clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
 			while (__sync_lock_test_and_set(&spinLocks[listIndex], 1))
 			{
 				continue;
 			}
-			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
-			threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+			// clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+			// threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
 			SortedList_insert(&head[listIndex], &elements[i]);
 			__sync_lock_release(&spinLocks[listIndex]);
 			break;
@@ -144,21 +145,21 @@ void *newThreadFunction(void *position)
 	switch (syncArg)
 	{
 	case 'm':
-		clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+		// clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
 		pthread_mutex_lock(&mutexLocks[randListIndex]);
-		clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
-		threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+		// clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+		// threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
 		length = SortedList_length(&head[randListIndex]);
 		pthread_mutex_unlock(&mutexLocks[randListIndex]);
 		break;
 	case 's':
-		clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+		// clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
 		while (__sync_lock_test_and_set(&spinLocks[randListIndex], 1))
 		{
 			continue;
 		}
-		clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
-		threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+		// clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+		// threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
 		length = SortedList_length(&head[randListIndex]);
 		__sync_lock_release(&spinLocks[randListIndex]);
 		break;
@@ -179,10 +180,10 @@ void *newThreadFunction(void *position)
 		switch (syncArg)
 		{
 		case 'm':
-			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+			// clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
 			pthread_mutex_lock(&mutexLocks[listIndex]);
-			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
-			threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+			// clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+			// threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
 			if (SortedList_delete(SortedList_lookup(&head[listIndex], elements[i].key)))
 			{
 				fprintf(stderr, "Error: could not delete\n");
@@ -191,13 +192,13 @@ void *newThreadFunction(void *position)
 			pthread_mutex_unlock(&mutexLocks[listIndex]);
 			break;
 		case 's':
-			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+			// clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
 			while (__sync_lock_test_and_set(&spinLocks[listIndex], 1))
 			{
 				continue;
 			}
-			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
-			threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+			// clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+			// threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
 			if (SortedList_delete(SortedList_lookup(&head[listIndex], elements[i].key)))
 			{
 				fprintf(stderr, "Error: could not delete\n");
@@ -322,6 +323,10 @@ int main(int argc, char **argv)
 
 	  // initialize (if option is set) a mutex for each sublist
 	mutexLocks = malloc(numLists * sizeof(pthread_mutex_t));
+	if (!mutexLocks) {
+		fprintf(stderr, "Error: Unable to malloc\n");
+		exit(1);
+	}
 	if (syncArg == 'm') {
 		int i;
 		i = 0;
@@ -333,6 +338,10 @@ int main(int argc, char **argv)
 
 	// initialize (if option is set) a spin lock for each sublist
 	spinLocks = malloc(numLists * sizeof(int));
+	if (!spinLocks) {
+		fprintf(stderr, "Error: Unable to malloc\n");
+		exit(1);
+	}
 	if (syncArg == 's') {
 		int i;
 		i = 0;
