@@ -16,14 +16,18 @@ SortedList_t *head;
 
 long long threads = 1;
 long long iterations = 1;
+long long numLists = 1;
 
 char syncArg = 0;
 int insertArg;
 int deleteArg;
 int lookupArg;
 
-pthread_mutex_t mutexLock;
-int spinLock = 0;
+pthread_mutex_t *mutexLocks;
+int *spinLocks;
+
+long long *threadLockTimes;
+
 int opt_yield = 0;
 
 void segfault()
@@ -34,7 +38,14 @@ void segfault()
 
 void cleanUp(pthread_t *thread_ids, int *thread_positions, SortedListElement_t *elements, SortedList_t *head)
 {
-	pthread_mutex_destroy(&mutexLock);
+	int i;
+	i = 0;
+	while (i < numLists) {
+		pthread_mutex_destroy(&mutexLocks[i]);
+		i++;
+	}
+	free(mutexLocks);
+	free(spinLocks);
 	free(thread_ids);
 	free(thread_positions);
 	free(head);
@@ -78,60 +89,81 @@ void print(long long *runTime, long *timePerOperation, long long *numOperations)
 		break;
 	}
 
-	int numLists;
-	numLists = 1;
+	fprintf(stdout, "list%s%s,%lld,%lld,%lld,%lld,%lld,%ld\n", yieldString, argString, threads, iterations, numLists, *(numOperations), *(runTime), *(timePerOperation));
+}
 
-	fprintf(stdout, "list%s%s,%lld,%lld,%d,%lld,%lld,%ld\n", yieldString, argString, threads, iterations, numLists, *(numOperations), *(runTime), *(timePerOperation));
+int hash(char key) {
+  return key % numLists;
+}
+
+long long calculateTime (struct timespec *end, struct timespec *start) {
+	return (end->tv_sec - start->tv_sec)*1000000000 + (end->tv_nsec - start->tv_nsec);
 }
 
 void *newThreadFunction(void *position)
 {
   	int threadStartPosition = *((int *)position);
-
+  	struct timespec lockStartTime;
+  	struct timespec lockEndTime;
 	int i;
 	i = threadStartPosition;
 	while (i < threadStartPosition + iterations)
 	{
+		int listIndex = hash(elements[i].key[0]);
 		switch (syncArg)
 		{
 		case 'm':
-			pthread_mutex_lock(&mutexLock);
-			SortedList_insert(head, &elements[i]);
-			pthread_mutex_unlock(&mutexLock);
+			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+			pthread_mutex_lock(&mutexLocks[listIndex]);
+			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+			threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+			SortedList_insert(&head[listIndex], &elements[i]);
+			pthread_mutex_unlock(&mutexLocks[listIndex]);
 			break;
 		case 's':
-			while (__sync_lock_test_and_set(&spinLock, 1))
+			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+			while (__sync_lock_test_and_set(&spinLocks[listIndex], 1))
 			{
 				continue;
 			}
-			SortedList_insert(head, &elements[i]);
-			__sync_lock_release(&spinLock);
+			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+			threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+			SortedList_insert(&head[listIndex], &elements[i]);
+			__sync_lock_release(&spinLocks[listIndex]);
 			break;
 		default:
-			SortedList_insert(head, &elements[i]);
+			SortedList_insert(&head[listIndex], &elements[i]);
 			break;
 		}
 		i++;
 	}
 
 	int length = 0;
+	int randListIndex = rand() % numLists;
+
 	switch (syncArg)
 	{
 	case 'm':
-		pthread_mutex_lock(&mutexLock);
-		length = SortedList_length(head);
-		pthread_mutex_unlock(&mutexLock);
+		clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+		pthread_mutex_lock(&mutexLocks[randListIndex]);
+		clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+		threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+		length = SortedList_length(&head[randListIndex]);
+		pthread_mutex_unlock(&mutexLocks[randListIndex]);
 		break;
 	case 's':
-		while (__sync_lock_test_and_set(&spinLock, 1))
+		clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+		while (__sync_lock_test_and_set(&spinLocks[randListIndex], 1))
 		{
 			continue;
 		}
-		length = SortedList_length(head);
-		__sync_lock_release(&spinLock);
+		clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+		threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+		length = SortedList_length(&head[randListIndex]);
+		__sync_lock_release(&spinLocks[randListIndex]);
 		break;
 	default:
-		length = SortedList_length(head);
+		length = SortedList_length(&head[randListIndex]);
 		break;
 	}
 	if (length < 0)
@@ -143,31 +175,38 @@ void *newThreadFunction(void *position)
 	i = threadStartPosition;
 	while (i < threadStartPosition + iterations)
 	{
+		int listIndex = hash(elements[i].key[0]);
 		switch (syncArg)
 		{
 		case 'm':
-			pthread_mutex_lock(&mutexLock);
-			if (SortedList_delete(SortedList_lookup(head, elements[i].key)))
+			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+			pthread_mutex_lock(&mutexLocks[listIndex]);
+			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+			threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+			if (SortedList_delete(SortedList_lookup(&head[listIndex], elements[i].key)))
 			{
 				fprintf(stderr, "Error: could not delete\n");
 				exit(2);
 			}
-			pthread_mutex_unlock(&mutexLock);
+			pthread_mutex_unlock(&mutexLocks[listIndex]);
 			break;
 		case 's':
-			while (__sync_lock_test_and_set(&spinLock, 1))
+			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+			while (__sync_lock_test_and_set(&spinLocks[listIndex], 1))
 			{
 				continue;
 			}
-			if (SortedList_delete(SortedList_lookup(head, elements[i].key)))
+			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+			threadLockTimes[threadStartPosition/iterations] += calculateTime(&lockStartTime, &lockEndTime);
+			if (SortedList_delete(SortedList_lookup(&head[listIndex], elements[i].key)))
 			{
 				fprintf(stderr, "Error: could not delete\n");
 				exit(2);
 			}
-			__sync_lock_release(&spinLock);
+			__sync_lock_release(&spinLocks[listIndex]);
 			break;
 		default:
-			if (SortedList_delete(SortedList_lookup(head, elements[i].key)))
+			if (SortedList_delete(SortedList_lookup(&head[listIndex], elements[i].key)))
 			{
 				fprintf(stderr, "Error: could not delete\n");
 				exit(2);
@@ -191,6 +230,7 @@ int main(int argc, char **argv)
 		{"iterations", required_argument, 0, 'i'},
 		{"yield", required_argument, 0, 'y'},
 		{"sync", required_argument, 0, 's'},
+		{"lists", required_argument, 0, 'l'},
 		{0, 0, 0, 0}};
 	char param;
 	syncArg = 0;
@@ -240,6 +280,9 @@ int main(int argc, char **argv)
 		case 's':
 			syncArg = optarg[0];
 			break;
+		case 'l':
+			numLists = atoi(optarg);
+			break;
 		default:
 			fprintf(stderr, "Error: Invalid arguments\n");
 			exit(1);
@@ -276,6 +319,30 @@ int main(int argc, char **argv)
 		elements[i].key = key;
 		i++;
 	}
+
+	  // initialize (if option is set) a mutex for each sublist
+	mutexLocks = malloc(numLists * sizeof(pthread_mutex_t));
+	if (syncArg == 'm') {
+		int i;
+		i = 0;
+		while (i < numLists) {
+			pthread_mutex_init(&mutexLocks[i], NULL);
+			i++;
+		}
+	}
+
+	// initialize (if option is set) a spin lock for each sublist
+	spinLocks = malloc(numLists * sizeof(int));
+	if (syncArg == 's') {
+		int i;
+		i = 0;
+		while (i < numLists) {
+			spinLocks[i] = 0;
+			i++;
+		}
+	}
+
+	threadLockTimes = malloc(sizeof(long long) * threads);
 
 	struct timespec startTime;
 	clock_gettime(CLOCK_MONOTONIC, &startTime);
