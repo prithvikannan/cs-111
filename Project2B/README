@@ -2,58 +2,41 @@ NAME: Prithvi Kannan
 EMAIL: prithvi.kannan@gmail.com
 ID: 405110096
 
-Project 2A
-Races and Synchronization
+Project 2B
+Lock Granularity and Performance
 
-This project is about understanding synchronization issues and how to solve them. The first part of this assignment 
-deals with conflicting read-modify-write operations on single variables and the second part is about complex data 
-structures (an ordered linked list). 
+In this project, I did additional performance instrumentation to confirm bottlenecks with locks, and extended my previous solution to deal with this problem. 
+Part 1 is the performance instrumentation and measurement to confirm the cause of the problem. Part 2 is implement a new option to divide a list into sublists and 
+support synchronization on sublists, thus allowing parallel access to the (original) list. Part 3 is new performance measurements to confirm that the problem has been solved.
 
 I cited the following references provided in the spec:
     https://computing.llnl.gov/tutorials/pthreads/
-    http://web.cs.ucla.edu/~harryxu/courses/111/winter20/ProjectGuide/lab2_add.gp
     http://web.cs.ucla.edu/~harryxu/courses/111/winter20/ProjectGuide/lab2_list.gp
     http://web.cs.ucla.edu/~harryxu/courses/111/winter20/ProjectGuide/SortedList.h
 
 Files Included:
-    lab2_add.c - a C program that implements and tests a shared variable add function, and produces output statistics
     SortedList.h - a header file (given by instructor) describing the interfaces for linked list operations
     SortedList.c - a C module that implements insert, delete, lookup, and length methods for a sorted doubly linked list with yield calls
     lab2_list.c - a C program that implements and produces the specified output statistics
-    lab2_add.csv - containing all results for all of the Part-1 tests
-    lab2_list.csv - containing all results for all of the Part-2 tests
-    lab2_add-1.png - threads and iterations required to generate a failure (with and without yields)
-    lab2_add-2.png - average time per operation with and without yields.
-    lab2_add-3.png - average time per (single threaded) operation vs. the number of iterations.
-    lab2_add-4.png - threads and iterations that can run successfully with yields under each of the synchronization options.
-    lab2_add-5.png - average time per (protected) operation vs. the number of threads.
-    lab2_list-1.png - average time per (single threaded) unprotected operation vs. number of iterations (illustrating the correction of the per-operation cost for the list length).
-    lab2_list-2.png - threads and iterations required to generate a failure (with and without yields).
-    lab2_list-3.png - iterations that can run (protected) without failure.
-    lab2_list-4.png - (length-adjusted) cost per operation vs the number of threads for the various synchronization options.
+    lab2_list.csv - containing all results for all of the tests
+    lab2b_1.png - throughput vs. number of threads for mutex and spin-lock synchronized list operations
+    lab2b_2.png - mean time per mutex wait and mean time per operation for mutex-synchronized list operations
+    lab2b_3.png - successful iterations vs. threads for each synchronization method
+    lab2b_4.png - throughput vs. number of threads for mutex synchronized partitioned lists
+    lab2b_5.png - throughput vs. number of threads for spin-lock-synchronized partitioned lists
     Makefile - containing targets to build, run 200+ specified test cases, make graphs, create tar and cleanup
+    lab2_tests.sh - shell script to run a number of test cases 
     README - description of project
-    lab2_add.gp - makes 5 plots for part-1 tests using GNUplot
-    lab2_list.gp - makes 4 plots for part-2 tests using GNUplot
+    lab2_list.gp - makes 5 plots using GNU plot
     
 Notes:
-    I was able to reduce the length of the Makefile by using for loops, but I was not able to figure out how to implement the dash prefix within the loop without getting an error "no file or directory found". As a result, my test cases with a dash are listed out individually.
-    I used this page as a guide. https://stackoverflow.com/questions/30954077/nested-for-loop-in-makefile
+    Building off my work on the previous project to optimize the test cases in the Makefile using loops, I realized that I could get rid of my errors and use an easier syntax by 
+    writing a bash script and having my Makefile run that script for the test target. I've implemented that for this lab. 
 
-2.1.1
-If a thread can complete its steps before a context switch to another thread, then there will be no conflicts. However, if threads are switched while a thread is still executing, that will result in a race condition. For this reason, we rarely see errors for 1, 10, or 100 iterations. 
+2.3.1
 
-2.1.2
-The yield runs are slower because of the additional time spent on context switching between processes. This involves saving the registers and state, which costs time. We cannot find the per-operation timing if we yield since we are getting the time of the operation and context switch together. It's impossible to distinguish those two.
+2.3.2
 
-2.1.3
-The average time per iteration drops with increased iterations since the time of a contet switch is amortized over multiple iterations. This is really a flaw in how we are calculating cost per iteration, and has to do with the fact that we cannot separate time of running processes vs time of context switch. If we crank up the iterations very high, then we can make the amortized cost of context switch negligible and get closer to the true cost. Notice the graph flattens out as we increase iterations. 
+2.3.3
 
-2.1.4
-If number of threads are lower, then there will be less total critical sections so the impact of the lock is less, since less threads are trying to access the same resources. All three protected operations slow down as the number of threads rises since the number of critical sections increases and more threads need to wait for resources to become available. 
-
-2.2.1
-The variation in time per mutex-protected operation vs threads in part 1 and part 2 are similar, but part 2 increased faster because there were more operations (adding/removing from a list versus adding and subtracting a variable)
-
-2.2.2
-Both graphs have postive slope, since the time per protected operation increases with the number of threads. However, the slope of the spinlock curve is more than that of the mutex curve since the mutex lock is a library function (and is therefore optimized), while I had to use system calls to implement the mutex function. Also, for spinlock, the CPU will allocate time to a spinning thread, but those threads will be adding significant runtime to the program, while mutex locked threads that don't currently own the lock will just be skipped. 
+2.3.4
