@@ -47,7 +47,7 @@ void cleanUp(pthread_t *thread_ids, int *thread_positions, SortedListElement_t *
 	exit(0);
 }
 
-void print(long long *runTime, long *timePerOperation, long long *numOperations)
+void print(long long *runTime, long *timePerOperation, long long *numOperations, long long *timeLocked)
 {
 	char yieldString[7];
 	char argString[6];
@@ -83,7 +83,7 @@ void print(long long *runTime, long *timePerOperation, long long *numOperations)
 		break;
 	}
 
-	fprintf(stdout, "list%s%s,%lld,%lld,%lld,%lld,%lld,%ld\n", yieldString, argString, threads, iterations, numLists, *(numOperations), *(runTime), *(timePerOperation));
+	fprintf(stdout, "list%s%s,%lld,%lld,%lld,%lld,%lld,%ld,%lld\n", yieldString, argString, threads, iterations, numLists, *(numOperations), *(runTime), *(timePerOperation), *(timeLocked));
 }
 
 int hash(char key) {
@@ -370,13 +370,11 @@ int main(int argc, char **argv){
   struct timespec endTime;
   clock_gettime(CLOCK_MONOTONIC, &endTime);
 
-  // add up the wait-for-lock times for each thread
-  long long totalLockTime = 0;
+  long long timeLocked = 0;
   for (int i = 0; i < threads; i++) {
-    totalLockTime += lockingTime[i]; 
+    timeLocked += lockingTime[i]; 
   }
 
-  // add up the lengths of all of the subhead (should add up to 0)
   int listLength = 0;
   for (int i = 0; i < numLists; i++) {
     listLength += SortedList_length(&head[i]);
@@ -391,7 +389,8 @@ int main(int argc, char **argv){
 	long long numOperations = 3 * threads * iterations;
 	long timePerOperation = runTime / numOperations;
 
-	print(&runTime, &timePerOperation, &numOperations);
+	print(&runTime, &timePerOperation, &numOperations, &timeLocked);
+	fprintf(stdout, "%lld",timeLocked);
 	cleanUp(thread_ids, thread_positions, elements, head);
 
   exit(0);
