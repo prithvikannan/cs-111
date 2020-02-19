@@ -74,10 +74,6 @@ plot \
     "< grep -e 'list-id-s,[0-9]*,[0-9]*,4,' lab2b_list.csv" using ($2):($3) \
     with points lc rgb 'green' title 'spin-lock protected', \
 
-#
-# "no valid points" is possible if even a single iteration can't run
-#
-
 set title "Throughput vs. number of threads for mutex synchronized partitioned lists"
 set xlabel "Threads"
 set logscale x 2

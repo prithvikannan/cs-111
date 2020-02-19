@@ -1,0 +1,292 @@
+Total: 1223 samples
+    1086  88.8%  88.8%     1223 100.0% newThreadFunction
+      39   3.2%  92.0%       39   3.2% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:200
+      18   1.5%  93.5%       18   1.5% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1721
+      17   1.4%  94.8%       17   1.4% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:165
+      14   1.1%  96.0%       85   7.0% SortedList_insert
+      11   0.9%  96.9%       51   4.2% SortedList_lookup
+       7   0.6%  97.5%        7   0.6% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:205
+       6   0.5%  98.0%        6   0.5% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:130
+       6   0.5%  98.4%        6   0.5% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:204
+       4   0.3%  98.8%        4   0.3% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1720
+       3   0.2%  99.0%        3   0.2% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1730
+       2   0.2%  99.2%        2   0.2% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:160
+       2   0.2%  99.3%        2   0.2% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:201
+       2   0.2%  99.5%        2   0.2% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:202
+       2   0.2%  99.7%        2   0.2% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1714
+       2   0.2%  99.8%        2   0.2% _init
+       1   0.1%  99.9%        1   0.1% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:203
+       1   0.1% 100.0%        1   0.1% 0x00007ffeb61f2601
+       0   0.0% 100.0%     1223 100.0% ?? /usr/src/debug////////glibc-2.17-c758a686/misc/../sysdeps/unix/sysv/linux/x86_64/clone.S:111
+       0   0.0% 100.0%        1   0.1% __GI___clock_gettime
+       0   0.0% 100.0%     1223 100.0% start_thread
+ROUTINE ====================== newThreadFunction in /u/ee/ugrad/prithvik/Documents/cs111/Project2B/lab2_list.c
+  1086   1223 Total samples (flat / cumulative)
+     .      .   93: long long calculateTime (struct timespec *start, struct timespec *end) {
+     .      .   94: 	return (end->tv_sec - start->tv_sec)*1000000000 + (end->tv_nsec - start->tv_nsec);
+     .      .   95: }
+     .      .   96: 
+     .      .   97: void *newThreadFunction(void *position)
+---
+     .      .   98: {
+     .      .   99:   struct timespec lockStartTime;
+     .      .  100:   struct timespec lockEndTime;
+     .      .  101: 
+     .      .  102:   int threadStartPosition = *((int *)position);
+     .      .  103:   int currentThread = threadStartPosition/iterations;
+     .      .  104: 
+     .      .  105: 	int i;
+     .      .  106: 	i = threadStartPosition;
+     .      .  107: 	while (i < threadStartPosition + iterations)
+     .      .  108: 	{
+     .      .  109: 		int listIndex = hashList(elements[i].key[0]);
+     .      .  110: 		// fprintf(stdout, "index: %d\n", listIndex);
+     .      .  111: 		switch (syncArg)
+     .      .  112: 		{
+     .      .  113: 		case 'm':
+     .      .  114: 			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+     .      .  115: 			pthread_mutex_lock(&mutexLocks[listIndex]);
+     .      .  116: 			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  117: 			lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .      .  118: 			SortedList_insert(&head[listIndex], &elements[i]);
+     .      .  119: 			pthread_mutex_unlock(&mutexLocks[listIndex]);
+     .      .  120: 			break;
+     .      .  121: 		case 's':
+     .      1  122: 			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+   558    558  123: 			while (__sync_lock_test_and_set(&spinLocks[listIndex], 1))
+     .      .  124: 			{
+     7      7  125: 				continue;
+     .      .  126: 			}
+     .      .  127: 			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  128: 			lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .     85  129: 			SortedList_insert(&head[listIndex], &elements[i]);
+     .      .  130: 			__sync_lock_release(&spinLocks[listIndex]);
+     .      .  131: 			break;
+     .      .  132: 		default:
+     .      .  133: 			SortedList_insert(&head[listIndex], &elements[i]);
+     .      .  134: 			break;
+     .      .  135: 		}
+     .      .  136: 		i++;
+     .      .  137: 	}
+     .      .  138: 
+     .      .  139: 	int length = 0;
+     .      .  140: 	int randListIndex = rand() % numLists;
+     .      .  141: 
+     .      .  142: 	switch (syncArg)
+     .      .  143: 	{
+     .      .  144: 	case 'm':
+     .      .  145: 		clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+     .      .  146: 		pthread_mutex_lock(&mutexLocks[randListIndex]);
+     .      .  147: 		clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  148: 		lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .      .  149: 		length = SortedList_length(&head[randListIndex]);
+     .      .  150: 		pthread_mutex_unlock(&mutexLocks[randListIndex]);
+     .      .  151: 		break;
+     .      .  152: 	case 's':
+     .      .  153: 		clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+     2      2  154: 		while (__sync_lock_test_and_set(&spinLocks[randListIndex], 1))
+     .      .  155: 		{
+     .      .  156: 			continue;
+     .      .  157: 		}
+     .      .  158: 		clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  159: 		lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .      .  160: 		length = SortedList_length(&head[randListIndex]);
+     .      .  161: 		__sync_lock_release(&spinLocks[randListIndex]);
+     .      .  162: 		break;
+     .      .  163: 	default:
+     .      .  164: 		length = SortedList_length(&head[randListIndex]);
+     .      .  165: 		break;
+     .      .  166: 	}
+     .      .  167: 	if (length < 0)
+     .      .  168: 	{
+     .      .  169: 		fprintf(stderr, "Error: length is negative\n");
+     .      .  170: 		exit(2);
+     .      .  171: 	}
+     .      .  172: 
+     .      .  173: 	i = threadStartPosition;
+     .      .  174: 	while (i < threadStartPosition + iterations)
+     .      .  175: 	{
+     .      .  176: 		int listIndex = hashList(elements[i].key[0]);
+     .      .  177: 		switch (syncArg)
+     .      .  178: 		{
+     .      .  179: 		case 'm':
+     .      .  180: 			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+     .      .  181: 			pthread_mutex_lock(&mutexLocks[listIndex]);
+     .      .  182: 			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  183: 			lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .      .  184: 			if (SortedList_delete(SortedList_lookup(&head[listIndex], elements[i].key)))
+     .      .  185: 			{
+     .      .  186: 				fprintf(stderr, "Error: could not delete\n");
+     .      .  187: 				exit(2);
+     .      .  188: 			}
+     .      .  189: 			pthread_mutex_unlock(&mutexLocks[listIndex]);
+     .      .  190: 			break;
+     .      .  191: 		case 's':
+     .      .  192: 			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+   517    517  193: 			while (__sync_lock_test_and_set(&spinLocks[listIndex], 1))
+     .      .  194: 			{
+     2      2  195: 				continue;
+     .      .  196: 			}
+     .      .  197: 			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  198: 			lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .     51  199: 			if (SortedList_delete(SortedList_lookup(&head[listIndex], elements[i].key)))
+     .      .  200: 			{
+     .      .  201: 				fprintf(stderr, "Error: could not delete\n");
+     .      .  202: 				exit(2);
+     .      .  203: 			}
+     .      .  204: 			__sync_lock_release(&spinLocks[listIndex]);
+     .      .  205: 			break;
+     .      .  206: 		default:
+     .      .  207: 			if (SortedList_delete(SortedList_lookup(&head[listIndex], elements[i].key)))
+     .      .  208: 			{
+     .      .  209: 				fprintf(stderr, "Error: could not delete\n");
+     .      .  210: 				exit(2);
+     .      .  211: 			}
+     .      .  212: 			break;
+     .      .  213: 		}
+     .      .  214: 		i++;
+     .      .  215: 	}
+     .      .  216: 
+     .      .  217:   return NULL;
+     .      .  218: }
+---
+     .      .  219: 
+     .      .  220: 
+     .      .  221: int main(int argc, char **argv){
+     .      .  222:   
+     .      .  223:   signal(SIGSEGV, segfault);
+ROUTINE ====================== newThreadFunction in /u/ee/ugrad/prithvik/Documents/cs111/Project2B/lab2_list.c
+  1086   1223 Total samples (flat / cumulative)
+     .      .   93: long long calculateTime (struct timespec *start, struct timespec *end) {
+     .      .   94: 	return (end->tv_sec - start->tv_sec)*1000000000 + (end->tv_nsec - start->tv_nsec);
+     .      .   95: }
+     .      .   96: 
+     .      .   97: void *newThreadFunction(void *position)
+---
+     .      .   98: {
+     .      .   99:   struct timespec lockStartTime;
+     .      .  100:   struct timespec lockEndTime;
+     .      .  101: 
+     .      .  102:   int threadStartPosition = *((int *)position);
+     .      .  103:   int currentThread = threadStartPosition/iterations;
+     .      .  104: 
+     .      .  105: 	int i;
+     .      .  106: 	i = threadStartPosition;
+     .      .  107: 	while (i < threadStartPosition + iterations)
+     .      .  108: 	{
+     .      .  109: 		int listIndex = hashList(elements[i].key[0]);
+     .      .  110: 		// fprintf(stdout, "index: %d\n", listIndex);
+     .      .  111: 		switch (syncArg)
+     .      .  112: 		{
+     .      .  113: 		case 'm':
+     .      .  114: 			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+     .      .  115: 			pthread_mutex_lock(&mutexLocks[listIndex]);
+     .      .  116: 			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  117: 			lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .      .  118: 			SortedList_insert(&head[listIndex], &elements[i]);
+     .      .  119: 			pthread_mutex_unlock(&mutexLocks[listIndex]);
+     .      .  120: 			break;
+     .      .  121: 		case 's':
+     .      1  122: 			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+   558    558  123: 			while (__sync_lock_test_and_set(&spinLocks[listIndex], 1))
+     .      .  124: 			{
+     7      7  125: 				continue;
+     .      .  126: 			}
+     .      .  127: 			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  128: 			lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .     85  129: 			SortedList_insert(&head[listIndex], &elements[i]);
+     .      .  130: 			__sync_lock_release(&spinLocks[listIndex]);
+     .      .  131: 			break;
+     .      .  132: 		default:
+     .      .  133: 			SortedList_insert(&head[listIndex], &elements[i]);
+     .      .  134: 			break;
+     .      .  135: 		}
+     .      .  136: 		i++;
+     .      .  137: 	}
+     .      .  138: 
+     .      .  139: 	int length = 0;
+     .      .  140: 	int randListIndex = rand() % numLists;
+     .      .  141: 
+     .      .  142: 	switch (syncArg)
+     .      .  143: 	{
+     .      .  144: 	case 'm':
+     .      .  145: 		clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+     .      .  146: 		pthread_mutex_lock(&mutexLocks[randListIndex]);
+     .      .  147: 		clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  148: 		lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .      .  149: 		length = SortedList_length(&head[randListIndex]);
+     .      .  150: 		pthread_mutex_unlock(&mutexLocks[randListIndex]);
+     .      .  151: 		break;
+     .      .  152: 	case 's':
+     .      .  153: 		clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+     2      2  154: 		while (__sync_lock_test_and_set(&spinLocks[randListIndex], 1))
+     .      .  155: 		{
+     .      .  156: 			continue;
+     .      .  157: 		}
+     .      .  158: 		clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  159: 		lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .      .  160: 		length = SortedList_length(&head[randListIndex]);
+     .      .  161: 		__sync_lock_release(&spinLocks[randListIndex]);
+     .      .  162: 		break;
+     .      .  163: 	default:
+     .      .  164: 		length = SortedList_length(&head[randListIndex]);
+     .      .  165: 		break;
+     .      .  166: 	}
+     .      .  167: 	if (length < 0)
+     .      .  168: 	{
+     .      .  169: 		fprintf(stderr, "Error: length is negative\n");
+     .      .  170: 		exit(2);
+     .      .  171: 	}
+     .      .  172: 
+     .      .  173: 	i = threadStartPosition;
+     .      .  174: 	while (i < threadStartPosition + iterations)
+     .      .  175: 	{
+     .      .  176: 		int listIndex = hashList(elements[i].key[0]);
+     .      .  177: 		switch (syncArg)
+     .      .  178: 		{
+     .      .  179: 		case 'm':
+     .      .  180: 			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+     .      .  181: 			pthread_mutex_lock(&mutexLocks[listIndex]);
+     .      .  182: 			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  183: 			lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .      .  184: 			if (SortedList_delete(SortedList_lookup(&head[listIndex], elements[i].key)))
+     .      .  185: 			{
+     .      .  186: 				fprintf(stderr, "Error: could not delete\n");
+     .      .  187: 				exit(2);
+     .      .  188: 			}
+     .      .  189: 			pthread_mutex_unlock(&mutexLocks[listIndex]);
+     .      .  190: 			break;
+     .      .  191: 		case 's':
+     .      .  192: 			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+   517    517  193: 			while (__sync_lock_test_and_set(&spinLocks[listIndex], 1))
+     .      .  194: 			{
+     2      2  195: 				continue;
+     .      .  196: 			}
+     .      .  197: 			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+     .      .  198: 			lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+     .     51  199: 			if (SortedList_delete(SortedList_lookup(&head[listIndex], elements[i].key)))
+     .      .  200: 			{
+     .      .  201: 				fprintf(stderr, "Error: could not delete\n");
+     .      .  202: 				exit(2);
+     .      .  203: 			}
+     .      .  204: 			__sync_lock_release(&spinLocks[listIndex]);
+     .      .  205: 			break;
+     .      .  206: 		default:
+     .      .  207: 			if (SortedList_delete(SortedList_lookup(&head[listIndex], elements[i].key)))
+     .      .  208: 			{
+     .      .  209: 				fprintf(stderr, "Error: could not delete\n");
+     .      .  210: 				exit(2);
+     .      .  211: 			}
+     .      .  212: 			break;
+     .      .  213: 		}
+     .      .  214: 		i++;
+     .      .  215: 	}
+     .      .  216: 
+     .      .  217:   return NULL;
+     .      .  218: }
+---
+     .      .  219: 
+     .      .  220: 
+     .      .  221: int main(int argc, char **argv){
+     .      .  222:   
+     .      .  223:   signal(SIGSEGV, segfault);

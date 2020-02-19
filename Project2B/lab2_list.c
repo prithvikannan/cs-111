@@ -86,11 +86,11 @@ void print(long long *runTime, long *timePerOperation, long long *numOperations,
 	fprintf(stdout, "list%s%s,%lld,%lld,%lld,%lld,%lld,%ld,%lld\n", yieldString, argString, threads, iterations, numLists, *(numOperations), *(runTime), *(timePerOperation), *(timeLocked));
 }
 
-int hash(char key) {
-  return key % numLists;
+int hashList(char key) {
+	return key % numLists;
 }
 
-long long calculateTime (struct timespec *end, struct timespec *start) {
+long long calculateTime (struct timespec *start, struct timespec *end) {
 	return (end->tv_sec - start->tv_sec)*1000000000 + (end->tv_nsec - start->tv_nsec);
 }
 
@@ -106,7 +106,7 @@ void *newThreadFunction(void *position)
 	i = threadStartPosition;
 	while (i < threadStartPosition + iterations)
 	{
-		int listIndex = hash(elements[i].key[0]);
+		int listIndex = hashList(elements[i].key[0]);
 		// fprintf(stdout, "index: %d\n", listIndex);
 		switch (syncArg)
 		{
@@ -173,7 +173,7 @@ void *newThreadFunction(void *position)
 	i = threadStartPosition;
 	while (i < threadStartPosition + iterations)
 	{
-		int listIndex = hash(elements[i].key[0]);
+		int listIndex = hashList(elements[i].key[0]);
 		switch (syncArg)
 		{
 		case 'm':
@@ -367,18 +367,19 @@ int main(int argc, char **argv){
 		i++;
 	}
 	
-  struct timespec endTime;
-  clock_gettime(CLOCK_MONOTONIC, &endTime);
+	struct timespec endTime;
+	clock_gettime(CLOCK_MONOTONIC, &endTime);
 
-  long long timeLocked = 0;
-  for (int i = 0; i < threads; i++) {
-    timeLocked += lockingTime[i]; 
-  }
+	long long timeLocked = 0;
+	for (int i = 0; i < threads; i++) {
+		timeLocked += lockingTime[i]; 
+	}
 
-  int listLength = 0;
-  for (int i = 0; i < numLists; i++) {
-    listLength += SortedList_length(&head[i]);
-  }
+
+	int listLength = 0;
+	for (int i = 0; i < numLists; i++) {
+		listLength += SortedList_length(&head[i]);
+	}
 	if (listLength != 0)
 	{
 		fprintf(stderr, "Error: list length is not zero\n");
@@ -388,9 +389,9 @@ int main(int argc, char **argv){
 	long long runTime = (endTime.tv_sec - startTime.tv_sec) * 1000000000 + (endTime.tv_nsec - startTime.tv_nsec);
 	long long numOperations = 3 * threads * iterations;
 	long timePerOperation = runTime / numOperations;
+	long long timeLockedPerOp = timeLocked/numOperations;
 
-	print(&runTime, &timePerOperation, &numOperations, &timeLocked);
-	fprintf(stdout, "%lld",timeLocked);
+	print(&runTime, &timePerOperation, &numOperations, &timeLockedPerOp);
 	cleanUp(thread_ids, thread_positions, elements, head);
 
   exit(0);
