@@ -25,7 +25,8 @@ Files Included:
     lab2b_4.png - throughput vs. number of threads for mutex synchronized partitioned lists
     lab2b_5.png - throughput vs. number of threads for spin-lock-synchronized partitioned lists
     Makefile - containing targets to build, run 200+ specified test cases, make graphs, create tar and cleanup
-    lab2_tests.sh - shell script to run a number of test cases 
+    lab2_tests.sh - shell script to run a number of test cases and write to lab2b_list.csv
+    lab2_profile.sh - shell script to create profile report
     README - description of project
     lab2_list.gp - makes 5 plots using GNU plot
     
@@ -35,8 +36,22 @@ Notes:
 
 2.3.1
 
+Most of the cycles are spent on the actual list operations in the 1 thread tests. For 2 thread tests, most of the time is still spent on the list operations, but some of it is spent on locking.  These are the most expensive parts of the code since it takes time to acquire a lock (spin and mutex) and the list operations are computational expensive.
+For high-thread spin-lock tests, most of the time/cycles are spent on spinning while waiting for a key. The graph shows a concave down curve meaning the spin locking of extra threads are significantly impacting the time. 
+For high-thread mutex tests, most of the time/cycles are spent on the actual list operations. The graph shows a near-linear curve meaning the mutex locking of extra threads is not as huge of an impact.
+
 2.3.2
+
+Line 123 of my code, which is the while loop waiting for the spin lock, is consuming most of the cycles with large thread values. All of the other lines take much less time in comparison. This operation becomes expensive as the number of threads gets larger because threads are having to spin idle every time they are scheduled, and as the number of threads increases, more threads are idling/spinning without getting the lock.  
 
 2.3.3
 
+The average lock wait time increases dramatically as the number of threads increases since more threads are competing for the same finite number of resources. 
+The overall completion time per operation also increases because there are more context switches as the number of threads increases. Context switches require saving of registers and take time.
+The wait time per op increased faster than the completion time per op because the completion time per op metric includes the time of the list operations and the lock operations. Thought the lock operations grew fast, it only made up part of the overall completion time so that metric grew slower.
+
 2.3.4
+
+For both synchronization methods, the performance drastically increased as the number of lists increased. This is because partitioning the list into more sublists reduces contention amongst the threads, so the threads are not waiting to acquire locks for as long.
+The throughput should continue to increase, but the will eventually reach a limit once there is no more contention amounst threads.
+An N-way partition may not always be equivalent to a single list with 1/N threads if the lengths of each sublist is related to the number of sublists so it may be different. As a result, the critical sections and throughput would not the same.
