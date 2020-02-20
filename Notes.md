@@ -773,14 +773,14 @@
 
 ## Thread API
 
-- pthread_create()
+- ```pthread_create()```
   - Makes new threads with a function pointer
-- pthread_join()
+- ```pthread_join()```
   - Wait for threads to complete
-- pthread_mutex_lock
+- ```pthread_mutex_lock```
   - Locks a variable before a critical section
   - Doesn't let other threads access that variable when lock is held
-- pthread_mutex_unlock
+- ```pthread_mutex_unlock```
   - Allows other processes to access variable
 
 ## Mutual Exclusion
@@ -870,11 +870,89 @@
   - Use a counter rather than binary flag for locks
   - FIFO wait queue
 - Operations
+  - Initialized semaphore count to the number of available resources
   - P "wait"
     - Decrement count
     - if count >=0, return
     - if count <0, add to queue
   - V "post/signal"
     - increment counter
+- Limitations
+  - Counter update errors 
+    - Data races (don't crash program but give wrong results)
+  - Lack practical sync features
+    - Easy to deadlock
+    - Can't check lock without blocking
+    - No support for priority
 
-  
+
+## Mutexes
+- Linux/Unix system
+- Locks sections of code briefly
+- Protects *data*, not code
+  - Don't need to protect sections that don't touch data
+- Object locking
+- File descriptor locking
+  - ```int flock(fd, operation)```
+  - Locks the file trying to be accessed
+  - Has shared and exclusive lock
+- Ranged file locking
+  - ```int lockf(fd, cmd, offset, len)```
+  - finer grain lock (specific bytes)
+
+## Advisory vs enforced
+- Enforced
+  - In implementation of object
+  - May be too conservative
+- Advisory (implemented in Linux)
+  - Convention
+  - Give users flexibility/freedom
+  - Example is mutex and flock
+
+## Locking problems
+- Contention
+- Locking performance
+  - If long critical section
+    - Time to lock << Time of running critical section
+  - If short critical section
+    - Not always worth it to lock
+  - Cost of waiting depends on conflict probability
+    - C_expected = (C_block * P_conflict) + (C_get * (1-P_conflict))
+  - Context switches are in microseconds
+
+## Priority and locking
+- Locking can prevent high priority processes from executing first 
+- Mars rover example
+  - Shared information bus (shared memory region protected by mutex)
+  - Low priority threasd that own the bud are put to sleep, when threads are preempted by higher priority, cannot get the bus.
+- Temporarily raise the priority of lower priority process once they get lock so that it cannot be preempted
+  - Only raise priority when it holds the lock
+
+## Reducing contention
+  - Eliminate/shorten critical section
+  - Eliminate preemption when in critical section
+  - Use private resources instead of shared 
+  - Batch operations
+    - Use "sloppy counter"
+    - Eventually transfer updates to global counter
+    - Global counter is not always up to date
+  - Remove requirement for full exclusivity
+    - Allow unprotected reads
+    - Lock parts of FDs instead of entire FDs
+
+## Deadlock
+- P1 and P2 both need resource A and B
+  - P1 has A
+  - P2 has B
+  - Both processes are stalled because they cannot get the other resource
+- Resource types
+  - Commodity
+  - [other type]
+- 4 Conditions
+  1. Mutual exclusion
+  2. Incremental allocation
+      - Processes/threads have to be able to ask for resources as needed
+      - Solution: pre-allocation, requires predicting resources needed
+  3. No pre-emption
+  4. Circular waiting
+
