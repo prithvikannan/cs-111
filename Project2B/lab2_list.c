@@ -136,38 +136,43 @@ void *newThreadFunction(void *position)
 		i++;
 	}
 
-	int length = 0;
-	int randListIndex = rand() % numLists;
 
-	switch (syncArg)
+	i = threadStartPosition;
+	while (i < threadStartPosition + iterations)
 	{
-	case 'm':
-		clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
-		pthread_mutex_lock(&mutexLocks[randListIndex]);
-		clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
-		lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
-		length = SortedList_length(&head[randListIndex]);
-		pthread_mutex_unlock(&mutexLocks[randListIndex]);
-		break;
-	case 's':
-		clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
-		while (__sync_lock_test_and_set(&spinLocks[randListIndex], 1))
+		int length = 0;
+		int listIndex = hashList(elements[i].key[0]);
+		switch (syncArg)
 		{
-			continue;
+		case 'm':
+			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+			pthread_mutex_lock(&mutexLocks[listIndex]);
+			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+			lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+			length = SortedList_length(&head[listIndex]);
+			pthread_mutex_unlock(&mutexLocks[listIndex]);
+			break;
+		case 's':
+			clock_gettime(CLOCK_MONOTONIC, &lockStartTime);
+			while (__sync_lock_test_and_set(&spinLocks[listIndex], 1))
+			{
+				continue;
+			}
+			clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
+			lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
+			length = SortedList_length(&head[listIndex]);
+			__sync_lock_release(&spinLocks[listIndex]);
+			break;
+		default:
+			length = SortedList_length(&head[listIndex]);
+			break;
 		}
-		clock_gettime(CLOCK_MONOTONIC, &lockEndTime);
-		lockingTime[currentThread] += calculateTime(&lockStartTime, &lockEndTime);
-		length = SortedList_length(&head[randListIndex]);
-		__sync_lock_release(&spinLocks[randListIndex]);
-		break;
-	default:
-		length = SortedList_length(&head[randListIndex]);
-		break;
-	}
-	if (length < 0)
-	{
-		fprintf(stderr, "Error: length is negative\n");
-		exit(2);
+		if (length < 0)
+		{
+			fprintf(stderr, "Error: length is negative\n");
+			exit(2);
+		}
+		i++;
 	}
 
 	i = threadStartPosition;
