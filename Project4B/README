@@ -6,13 +6,16 @@ Project 4B
 In this project I learned how to use my beaglebone to transfer files and as another computer.
 
 Resources:
-time - https://www.tutorialspoint.com/c_standard_library/c_function_localtime.htm 
+    https://www.tutorialspoint.com/c_standard_library/c_function_localtime.htm 
+    http://wiki.seeedstudio.com/Grove-Temperature_Sensor_V1.2/
+    https://github.com/GalenWong/beaglebone-with-mac
 
+Files included:
+    Makefile - containing targets to build (in dev and prod mode), run smoke tests, create tar and cleanup
+    README - description of project
+    lab4b.c - C source files for an embedded application that builds and runs (with no errors or warnings) on an embedded system
 
-temp - http://wiki.seeedstudio.com/Grove-Temperature_Sensor_V1.2/
-
-const int B = 4275;               // B value of the thermistor
-const int R0 = 100000;            // R0 = 100k
-
-if using 8.7
-    --std=c99 in the makefile
+Notes:
+    I was having a hard time setting up the mraa libraries on my board. To solve my issue, I looked online and found a mraa install tutorial from Galen Wong (former CS111 student). Following his guidelines, I was able to install mraa. However, in the install, he notes that the spec says to do mraa_aio_init(1) but for it to work it should be mraa_aio_init(0). I have this setup by passing in a compiler flag DEV, which flips the variable in the code. I can invoke the development environment using `make dev` instead of `make prod`.
+    
+    My beaglebone runs version 9.5, but I have tested on another board with version 8.7.
