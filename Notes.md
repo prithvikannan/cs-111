@@ -946,13 +946,42 @@
   - P2 has B
   - Both processes are stalled because they cannot get the other resource
 - Resource types
-  - Commodity
-  - [other type]
+  - Commodity -> can ask for an amount
+  - General 
 - 4 Conditions
   1. Mutual exclusion
+      - Only one process can use a resource at a time
+      - Solution: don't use shared resources
   2. Incremental allocation
       - Processes/threads have to be able to ask for resources as needed
       - Solution: pre-allocation, requires predicting resources needed
   3. No pre-emption
+      - If an entity has the resource, you can't take it away
+      - Solution: turn off interrupts
   4. Circular waiting
+      - A waits for B, B waits for A
+      - Cycle in dependency/wait-for graph
+      - Solution: Reservations in advance (facilitated by resource manager) for commodity resources. 
+
+## Resource Management
+- Commodity resource management
+  - Advanced reservation mechanisms much easier commodities
+  - System must guarantee reservations if granted
+  - Must deal with reservation failures
+    - Application must have a way of reporting and continue running
+- Rejecting resources
+  - Not great, better than failure
+
+## Breaking circular dependencies
+- Total resource ordering
+  - All requesters allocate resources in the same order
+- *Lock dance*  
+  - Release R2, allocate R1, reacquire R2
+
+## Deadlock detection
+- Allow deadlock, but detect when it happens
+- Not practical
+
+## Watchdog threads
+- Demon process
 
