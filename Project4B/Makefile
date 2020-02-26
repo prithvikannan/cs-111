@@ -12,10 +12,12 @@ prod:
 dev:
 	gcc -std=c99 -g -DDEV -lmraa -lm -Wall -Wextra -o lab4b lab4b.c
 
-check: 
+check:
+	chmod +x ./smoketest.sh
+	./smoketest.sh
 
 dist: README
-	tar -czvf lab4b-405110096.tar.gz Makefile README lab4b.c
+	tar -czvf lab4b-405110096.tar.gz Makefile README lab4b.c smoketest.sh
 
 clean:
 	rm -rf *.tar.gz

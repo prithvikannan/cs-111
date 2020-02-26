@@ -3,7 +3,7 @@ EMAIL: prithvi.kannan@gmail.com
 ID: 405110096
 
 Project 4B
-In this project I learned how to use my beaglebone to transfer files and as another computer.
+In this project I created an application that runs in an embedded system, reads data from external sensors, and logs the results. 
 
 Resources:
     https://www.tutorialspoint.com/c_standard_library/c_function_localtime.htm 
@@ -12,9 +12,10 @@ Resources:
 
 Files included:
     Makefile - containing targets to build (in dev and prod mode), run smoke tests, create tar and cleanup
+    smoketest.sh - set of tests to make sure the project is working
     README - description of project
     lab4b.c - C source files for an embedded application that builds and runs (with no errors or warnings) on an embedded system
-
+    
 Notes:
     I was having a hard time setting up the mraa libraries on my board. To solve my issue, I looked online and found a mraa install tutorial from Galen Wong (former CS111 student). Following his guidelines, I was able to install mraa. However, in the install, he notes that the spec says to do mraa_aio_init(1) but for it to work it should be mraa_aio_init(0). I have this setup by passing in a compiler flag DEV, which flips the variable in the code. I can invoke the development environment using `make dev` instead of `make prod`.
     
