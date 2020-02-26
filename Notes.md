@@ -985,3 +985,98 @@
 ## Watchdog threads
 - Demon process
 
+# Devices
+
+## Devices and Interrupts
+- Drivers rely on interrupts
+- Devices much slower than CPU
+
+## Busses
+- CPU and devices connected by the bus
+- Control and data information
+- Send/recieve interrupts
+  - Devices give signal when they are done/ready
+  - Controller gives interrupt on bus
+  - Bus transfers interrupt to CPU
+  - Leads to data movement
+
+## CPU interrupts
+- Similar to traps, but caused externally from CPU
+- Can be disabled by CPU
+  - Interrupt can be *pending* until the CPU is ready
+
+## Device performance
+- System devices limit performance
+- If device is idle, throughput drops
+- Delays disrupt real time data flows
+- Start *n+1* once *n* is done (popline?)
+
+## Improving performance
+- Parallelization
+  - Devices and CPU work separately
+- Device needs to use RAM
+  - Modern CPU avoids RAM, uses CPU caches instead
+- Let device use device bus instead of CPU
+- Direct memory access (DMA)
+  - Any two devices on the bus can pass data (without using CPU)
+  - CPU rarely needs DMA
+  - Facilitates parallelism of devices and CPU
+- Bigger transfers are better
+  - Small blocks mean disk have to spin a lot
+  - Per-operation overhead is amortized
+    - Instructions to setup
+
+## I/O and buffering
+- OS consolidates requests
+  - Cache recently used disk blocks
+  - Accumulate small writes and do at once
+- Read-ahead
+  - Cache blocks before they are requested
+- Deep request queue
+  - Minimizes overhead
+  - How to implement
+    - Many processes making requests
+    - Read-ahead
+- Double buffered output
+  - Application and device I/O go in parallel
+    - Application queues up successive writes
+    - Devices picks up next buffer as soon as it's ready
+  - CPU bound programs
+    - Application speeds up since it doesn't wait for I/O
+  - I/O bound programs
+    - Device is busy, improving throughput
+
+## Threading and buffers
+- Buffer requires storing a current (head/tail) pointer
+- Multiple threads writing to a shared buffer creates contention for pointer
+  - Requires locking to enforce; overhead
+
+## Scatter/Gather I/O
+- Entire transfer in DMA must be contiguous in physical memory
+- Gather - writes from the page to device
+  - Copy information from pages into contiguous buffer in physical memory level
+  - Send buffer out to device
+- Scatter - reads into paged memory
+  - Data from DMA stream scattered in physical memory
+- DMA + Gather/Scatter implemented in the hardware
+
+## Memory mapped I/O
+- DMA not good for small transfers
+- Treat registers in device as part of regular memory space
+- Map I/O device into process address space
+  - Use as if it were memory
+  - Example of bit mapped display adapter, can just change a single pixel as memory
+
+## Memory mapped I/O vs DMA
+- DMA better for large transfers
+  - Better utilization of device and CPU
+  - Faster for occaisonal large transfers
+- Memory mapped I/O has no per-op overhead
+  - Good for frequent small transfers
+- **batching is good for throughput, bad for latency**
+
+## Generalizing abstractions for device drivers
+- Many commonalities
+- Device driver interface (DDI)
+  - Standard device driver entry points
+  - Entry points corresponding to system calls (open, read, write)
