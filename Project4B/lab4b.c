@@ -16,7 +16,7 @@
 #include <ctype.h>
 #include <mraa.h>
 #include <mraa/aio.h>
-#include "fcntl.h"
+#include "fcntl.h" 
 
 #if DEV
 const int mraaFlag = 0;
@@ -27,16 +27,19 @@ const int mraaFlag = 1;
 const int BETA = 4275;
 const int R0 = 100000;
 
+const int BUFFER_SIZE = 128;
+
 int period = 1;
-char unitFlag = 'F';
+char unit;
 
-struct pollfd polls[1];
-int logfd;
-int logFlag = 0;
-int stopReports = 0;
+struct pollfd myPoll[1];
+int fd;
+int shouldLog = 0;
 
-mraa_aio_context sensor;
+mraa_aio_context temperatureSensor;
 mraa_gpio_context button;
+
+int noReports = 0;
 
 struct tm *getCurrentTime()
 {
@@ -45,12 +48,12 @@ struct tm *getCurrentTime()
     return localtime(&raw);
 }
 
-double convertTemp(int sensorInput)
+double convertTemp(int temperatureSensorInput)
 {
-    double temp = 1023.0 / (double)sensorInput - 1.0;
+    double temp = 1023.0 / (double)temperatureSensorInput - 1.0;
     temp *= R0;
     float temperature = 1.0 / (log(temp / R0) / BETA + 1 / 298.15) - 273.15;
-    if (unitFlag == 'C')
+    if (unit == 'C')
     {
         return temperature;
     }
@@ -60,60 +63,66 @@ double convertTemp(int sensorInput)
     }
 }
 
-void handle_input(const char *input)
+void readInput(const char *input)
 {
     if (!strcmp(input, "OFF"))
     {
-        if (logFlag)
+        if (shouldLog)
         {
-            dprintf(logfd, "OFF\n");
+            dprintf(fd, "OFF\n");
         }
         struct tm *currTime = getCurrentTime();
         fprintf(stdout, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
-        if (logFlag)
+        if (shouldLog)
         {
-            dprintf(logfd, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
+            dprintf(fd, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
         }
         exit(0);
     }
     else if (!strcmp(input, "START"))
     {
-        stopReports = 0;
-        if (logFlag)
+        noReports = 0;
+        if (shouldLog)
         {
-            dprintf(logfd, "START\n");
+            dprintf(fd, "START\n");
         }
     }
     else if (!strcmp(input, "STOP"))
     {
-        stopReports = 1;
-        if (logFlag)
+        noReports = 1;
+        if (shouldLog)
         {
-            dprintf(logfd, "STOP\n");
+            dprintf(fd, "STOP\n");
         }
     }
     else if (!strncmp(input, "SCALE=", sizeof(char) * 6))
     {
-        unitFlag = input[6];
-        if (logFlag && stopReports == 0)
+        unit = input[6];
+        if (shouldLog)
         {
-            dprintf(logfd, "SCALE=%c\n", unitFlag);
+            if (noReports == 0)
+            {
+                dprintf(fd, "SCALE=%c\n", unit);
+            }
         }
     }
     else if (!strncmp(input, "PERIOD=", sizeof(char) * 7))
     {
         int newPeriod = atoi(input + 7);
         period = newPeriod;
-        if (logFlag && stopReports == 0)
+        if (shouldLog)
         {
-            dprintf(logfd, "PERIOD=%d\n", period);
+            if (noReports == 0)
+            {
+                dprintf(fd, "PERIOD=%d\n", period);
+            }
         }
     }
     else if (!strncmp(input, "LOG", sizeof(char) * 3))
     {
-        if (logFlag)
+        if (shouldLog)
         {
-            dprintf(logfd, "%s\n", input);
+            dprintf(fd, "%s\n", input);
         }
     }
     else
@@ -123,27 +132,32 @@ void handle_input(const char *input)
     }
 }
 
-void setupPollandTime()
+void pollFunction()
 {
-    char commandBuff[128];
-    char copyBuff[128];
-    memset(commandBuff, 0, 128);
-    memset(copyBuff, 0, 128);
-    int copyIndex = 0;
-    polls[0].fd = STDIN_FILENO;
-    polls[0].events = POLLIN | POLLERR | POLLHUP;
+    myPoll[0].fd = STDIN_FILENO;
+    myPoll[0].events = POLLIN | POLLHUP | POLLERR;
+
+    int position = 0;
+
+    char cmdBuf[BUFFER_SIZE];
+    char inputBuf[BUFFER_SIZE];
+    memset(cmdBuf, 0, BUFFER_SIZE);
+    memset(inputBuf, 0, BUFFER_SIZE);
 
     while (1)
     {
-        int sensorValue = mraa_aio_read(sensor);
-        double tempValue = convertTemp(sensorValue);
-        if (!stopReports)
+        int temperatureSensorValue = mraa_aio_read(temperatureSensor);
+        double tempValue = convertTemp(temperatureSensorValue);
+        if (!noReports)
         {
             struct tm *currTime = getCurrentTime();
             fprintf(stdout, "%.2d:%.2d:%.2d %.1f\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec, tempValue);
-            if (logFlag && stopReports == 0)
+            if (shouldLog)
             {
-                dprintf(logfd, "%.2d:%.2d:%.2d %.1f\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec, tempValue);
+                if (noReports == 0)
+                {
+                    dprintf(fd, "%.2d:%.2d:%.2d %.1f\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec, tempValue);
+                }
             }
         }
         time_t startTime, endTime;
@@ -156,21 +170,21 @@ void setupPollandTime()
             {
                 struct tm *currTime = getCurrentTime();
                 fprintf(stdout, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
-                if (logFlag)
+                if (shouldLog)
                 {
-                    dprintf(logfd, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
+                    dprintf(fd, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
                 }
                 exit(0);
             }
-            int ret = poll(polls, 1, 0);
+            int ret = poll(myPoll, 1, 0);
             if (ret < 0)
             {
                 fprintf(stderr, "Error: failed to poll\n");
                 exit(1);
             }
-            if (polls[0].revents && POLLIN)
+            if (myPoll[0].revents && POLLIN)
             {
-                int num = read(STDIN_FILENO, commandBuff, 128);
+                int num = read(STDIN_FILENO, cmdBuf, BUFFER_SIZE);
                 if (num < 0)
                 {
                     fprintf(stderr, "Error: unable to read\n");
@@ -178,18 +192,19 @@ void setupPollandTime()
                 }
                 int i;
                 i = 0;
-                while (i < num && copyIndex < 128)
+                while (i < num && position < BUFFER_SIZE)
                 {
-                    if (commandBuff[i] == '\n')
+                    switch (cmdBuf[i])
                     {
-                        handle_input((char *)&copyBuff);
-                        copyIndex = 0;
-                        memset(copyBuff, 0, 128);
-                    }
-                    else
-                    {
-                        copyBuff[copyIndex] = commandBuff[i];
-                        copyIndex++;
+                    case '\n':
+                        readInput((char *)&inputBuf);
+                        position = 0;
+                        memset(inputBuf, 0, BUFFER_SIZE);
+                        break;
+                    default:
+                        inputBuf[position] = cmdBuf[i];
+                        position = position + 1;
+                        break;
                     }
                     i++;
                 }
@@ -208,6 +223,7 @@ int main(int argc, char **argv)
         {0, 0, 0, 0}};
 
     int param = 0;
+    unit = 'F';
     while (1)
     {
         param = getopt_long(argc, argv, "p:sl", args, NULL);
@@ -229,10 +245,10 @@ int main(int argc, char **argv)
             switch (optarg[0])
             {
             case 'C':
-                unitFlag = 'C';
+                unit = 'C';
                 break;
             case 'F':
-                unitFlag = 'F';
+                unit = 'F';
                 break;
             default:
                 fprintf(stderr, "Error: invalid option. Must be --scale=F or --scale=C\n");
@@ -241,10 +257,10 @@ int main(int argc, char **argv)
             }
             break;
         case 'l':
-            logFlag = 1;
-            char *logFile = optarg;
-            logfd = creat(logFile, 0666);
-            if (logfd < 0)
+            shouldLog = 1;
+            char *fileName = optarg;
+            fd = creat(fileName, 0666);
+            if (fd < 0)
             {
                 fprintf(stderr, "Error: failed to create file\n");
                 exit(1);
@@ -257,10 +273,10 @@ int main(int argc, char **argv)
         }
     }
 
-    sensor = mraa_aio_init(mraaFlag); // if this is dev environment use 0, for submission use 1
-    if (sensor == NULL)
+    temperatureSensor = mraa_aio_init(mraaFlag); // if this is dev environment use 0, for submission use 1
+    if (temperatureSensor == NULL)
     {
-        fprintf(stderr, "Error: Unable to create temperature sensor\n");
+        fprintf(stderr, "Error: Unable to create temperature temperatureSensor\n");
         mraa_deinit();
         exit(1);
     }
@@ -274,10 +290,10 @@ int main(int argc, char **argv)
     }
     mraa_gpio_dir(button, MRAA_GPIO_IN);
 
-    setupPollandTime();
+    pollFunction();
 
-    mraa_aio_close(sensor);
+    mraa_aio_close(temperatureSensor);
     mraa_gpio_close(button);
-    close(logfd);
+    close(fd);
     exit(0);
 }
