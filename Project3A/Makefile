@@ -7,9 +7,9 @@
 default: build
 
 build: 
-	gcc -g -Wall -Wextra -std=gnu99 lucas_lab3a.c -o lab3a
+	gcc -g -Wall -Wextra -std=gnu99 lab3a.c -o lab3a
 
-dist:
+dist: build
 	tar -cvzf lab3a-405110096.tar.gz lab3a.c ext2_fs.h Makefile README
 
 clean:

@@ -1,0 +1,17 @@
+NAME: Prithvi Kannan,Harsh Chobisa
+EMAIL: prithvi.kannan@gmail.com,harshc4@gmail.com
+ID: 405110096,505103854
+
+Project 3A
+In this project I created an application to analyze the file system in that image file and output a summary to standard out (describing the super block, groups, free-lists, inodes, indirect blocks, and directories)
+
+Resources:
+    https://www.nongnu.org/ext2-doc/ext2.html 
+    http://www.cplusplus.com/reference/ctime/gmtime/
+    
+Files included:
+    Makefile - containing targets to build, create tar and cleanup
+    README - description of project
+    lab3a.c - C source files to make a report of a file system
+    
+Notes:
