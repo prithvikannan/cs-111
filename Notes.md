@@ -773,14 +773,14 @@
 
 ## Thread API
 
-- ```pthread_create()```
+- `pthread_create()`
   - Makes new threads with a function pointer
-- ```pthread_join()```
+- `pthread_join()`
   - Wait for threads to complete
-- ```pthread_mutex_lock```
+- `pthread_mutex_lock`
   - Locks a variable before a critical section
   - Doesn't let other threads access that variable when lock is held
-- ```pthread_mutex_unlock```
+- `pthread_mutex_unlock`
   - Allows other processes to access variable
 
 ## Mutual Exclusion
@@ -849,7 +849,7 @@
   - Shared data structure
 - Who to wake up?
   - Wake up a single thread
-  - Broadcast and wake up all blocked threads 
+  - Broadcast and wake up all blocked threads
     - May be wasteful, good if there are lots of resources
 - Locking + async events should yield the following benefits...
   - Effectiveness
@@ -858,7 +858,8 @@
   - Performance
 
 ## Semaphores
-- *synchronization platform for multiple processing units*
+
+- _synchronization platform for multiple processing units_
 - Synchronization choices
   - Use locks
     - Spin loops
@@ -878,29 +879,30 @@
   - V "post/signal"
     - increment counter
 - Limitations
-  - Counter update errors 
+  - Counter update errors
     - Data races (don't crash program but give wrong results)
   - Lack practical sync features
     - Easy to deadlock
     - Can't check lock without blocking
     - No support for priority
 
-
 ## Mutexes
+
 - Linux/Unix system
 - Locks sections of code briefly
-- Protects *data*, not code
+- Protects _data_, not code
   - Don't need to protect sections that don't touch data
 - Object locking
 - File descriptor locking
-  - ```int flock(fd, operation)```
+  - `int flock(fd, operation)`
   - Locks the file trying to be accessed
   - Has shared and exclusive lock
 - Ranged file locking
-  - ```int lockf(fd, cmd, offset, len)```
+  - `int lockf(fd, cmd, offset, len)`
   - finer grain lock (specific bytes)
 
 ## Advisory vs enforced
+
 - Enforced
   - In implementation of object
   - May be too conservative
@@ -910,6 +912,7 @@
   - Example is mutex and flock
 
 ## Locking problems
+
 - Contention
 - Locking performance
   - If long critical section
@@ -917,11 +920,12 @@
   - If short critical section
     - Not always worth it to lock
   - Cost of waiting depends on conflict probability
-    - C_expected = (C_block * P_conflict) + (C_get * (1-P_conflict))
+    - C_expected = (C_block _ P_conflict) + (C_get _ (1-P_conflict))
   - Context switches are in microseconds
 
 ## Priority and locking
-- Locking can prevent high priority processes from executing first 
+
+- Locking can prevent high priority processes from executing first
 - Mars rover example
   - Shared information bus (shared memory region protected by mutex)
   - Low priority threasd that own the bud are put to sleep, when threads are preempted by higher priority, cannot get the bus.
@@ -929,41 +933,44 @@
   - Only raise priority when it holds the lock
 
 ## Reducing contention
-  - Eliminate/shorten critical section
-  - Eliminate preemption when in critical section
-  - Use private resources instead of shared 
-  - Batch operations
-    - Use "sloppy counter"
-    - Eventually transfer updates to global counter
-    - Global counter is not always up to date
-  - Remove requirement for full exclusivity
-    - Allow unprotected reads
-    - Lock parts of FDs instead of entire FDs
+
+- Eliminate/shorten critical section
+- Eliminate preemption when in critical section
+- Use private resources instead of shared
+- Batch operations
+  - Use "sloppy counter"
+  - Eventually transfer updates to global counter
+  - Global counter is not always up to date
+- Remove requirement for full exclusivity
+  - Allow unprotected reads
+  - Lock parts of FDs instead of entire FDs
 
 ## Deadlock
+
 - P1 and P2 both need resource A and B
   - P1 has A
   - P2 has B
   - Both processes are stalled because they cannot get the other resource
 - Resource types
   - Commodity -> can ask for an amount
-  - General 
+  - General
 - 4 Conditions
   1. Mutual exclusion
-      - Only one process can use a resource at a time
-      - Solution: don't use shared resources
+     - Only one process can use a resource at a time
+     - Solution: don't use shared resources
   2. Incremental allocation
-      - Processes/threads have to be able to ask for resources as needed
-      - Solution: pre-allocation, requires predicting resources needed
+     - Processes/threads have to be able to ask for resources as needed
+     - Solution: pre-allocation, requires predicting resources needed
   3. No pre-emption
-      - If an entity has the resource, you can't take it away
-      - Solution: turn off interrupts
+     - If an entity has the resource, you can't take it away
+     - Solution: turn off interrupts
   4. Circular waiting
-      - A waits for B, B waits for A
-      - Cycle in dependency/wait-for graph
-      - Solution: Reservations in advance (facilitated by resource manager) for commodity resources. 
+     - A waits for B, B waits for A
+     - Cycle in dependency/wait-for graph
+     - Solution: Reservations in advance (facilitated by resource manager) for commodity resources.
 
 ## Resource Management
+
 - Commodity resource management
   - Advanced reservation mechanisms much easier commodities
   - System must guarantee reservations if granted
@@ -973,25 +980,30 @@
   - Not great, better than failure
 
 ## Breaking circular dependencies
+
 - Total resource ordering
   - All requesters allocate resources in the same order
-- *Lock dance*  
+- _Lock dance_
   - Release R2, allocate R1, reacquire R2
 
 ## Deadlock detection
+
 - Allow deadlock, but detect when it happens
 - Not practical
 
 ## Watchdog threads
+
 - Demon process
 
 # Devices
 
 ## Devices and Interrupts
+
 - Drivers rely on interrupts
 - Devices much slower than CPU
 
 ## Busses
+
 - CPU and devices connected by the bus
 - Control and data information
 - Send/recieve interrupts
@@ -1001,17 +1013,20 @@
   - Leads to data movement
 
 ## CPU interrupts
+
 - Similar to traps, but caused externally from CPU
 - Can be disabled by CPU
-  - Interrupt can be *pending* until the CPU is ready
+  - Interrupt can be _pending_ until the CPU is ready
 
 ## Device performance
+
 - System devices limit performance
 - If device is idle, throughput drops
 - Delays disrupt real time data flows
-- Start *n+1* once *n* is done (popline?)
+- Start _n+1_ once _n_ is done (popline?)
 
 ## Improving performance
+
 - Parallelization
   - Devices and CPU work separately
 - Device needs to use RAM
@@ -1027,6 +1042,7 @@
     - Instructions to setup
 
 ## I/O and buffering
+
 - OS consolidates requests
   - Cache recently used disk blocks
   - Accumulate small writes and do at once
@@ -1047,11 +1063,13 @@
     - Device is busy, improving throughput
 
 ## Threading and buffers
+
 - Buffer requires storing a current (head/tail) pointer
 - Multiple threads writing to a shared buffer creates contention for pointer
   - Requires locking to enforce; overhead
 
 ## Scatter/Gather I/O
+
 - Entire transfer in DMA must be contiguous in physical memory
 - Gather - writes from the page to device
   - Copy information from pages into contiguous buffer in physical memory level
@@ -1061,6 +1079,7 @@
 - DMA + Gather/Scatter implemented in the hardware
 
 ## Memory mapped I/O
+
 - DMA not good for small transfers
 - Treat registers in device as part of regular memory space
 - Map I/O device into process address space
@@ -1068,6 +1087,7 @@
   - Example of bit mapped display adapter, can just change a single pixel as memory
 
 ## Memory mapped I/O vs DMA
+
 - DMA better for large transfers
   - Better utilization of device and CPU
   - Faster for occaisonal large transfers
@@ -1076,7 +1096,99 @@
 - **batching is good for throughput, bad for latency**
 
 ## Generalizing abstractions for device drivers
+
 - Many commonalities
 - Device driver interface (DDI)
   - Standard device driver entry points
   - Entry points corresponding to system calls (open, read, write)
+
+# File systems
+
+## Persistent data storage
+
+- Raw storage blocks
+  - Hard drive, SSD
+- Database
+  - Extra overhead and structure
+- **File system**
+  - Organized method that is logical to developers
+  - Inspired by physical file cabinets
+  - Every unit is a file
+  - Goals: persistence, easy access, performance (as fast as CPU), reliability (survives crashes), security (using access control lists)
+
+## File system and hardware
+
+- HDD much slower than SSD
+  - 50-70x slower
+  - SSD has no penalty for random access
+  - HDD must spin far to get to new location
+- Data and metadata
+  - Data - actual information in the file
+  - Metadata - information about the file; permissions, size, timestamp
+  - Need to be stored persistently
+- File system needs to be agnostic to hardware
+  - RAID, SSD, HDD, etc.
+
+## File system API
+
+- File container operations
+  - Changing the information about a file, not editing the actual file
+  - Ownership, protection, create/destroy, links
+- Directory applications
+  - Create/update directories
+  - Find files by name
+  - List files
+- File I/O
+  - Read and write to file
+  - Seek
+  - Map into address space (MMIO)
+
+## Layered abstractions
+
+- At the top, apps think they are accessing files
+- At the bottom, various block devices are reading and writing blocks
+- Virtual file system (VFS) layer
+  - Interface for different file system implementations
+  - File system layer implements interface (with different goals)
+
+## File systems and block I/O
+
+- Implements async read/write
+- Unified LRU buffer cache to optimize locality
+  - Users read/write contiguous blocks or same files
+
+## File system control structure
+
+- File consists of multiple data blocks
+- Finding information needs to be fast
+- Files can be sparesly populated
+- On disk and in memory version
+- On disk version
+  - Contains pointers to blocks
+- In-memory version
+  - Open files
+  - All processes must share this version
+  - Contains pointers to memory
+  - Maintains dirty bits to update disk copy
+
+## File system structure
+
+- Live on block-oriented devices, use blocks to store user data
+- Need to have pointers
+- Boot block
+  - 0th block is use for code allowing to boot the OS
+  - File systems start at block 1
+- Managing alllocated space
+  - Internal/external fragmentation, paging
+- Linked extents (DOS method)
+  - File control block has a pointer to the next chunk
+  - Use a pointer table to speed up searches
+  - File allocation table (FAT) holds next cluster number for each cluster
+  - Capacity of file system is determined by "width" of FAT table
+    - Can accomodate larger chunks
+- System V (Unix method)
+  - Inode - in memory file descriptors
+  - Dinode - on disk file desciptors
+  - Open file references stored in process descriptor
+  - Open file instance descriptors (unique to each process)
+  - Processes can share an open fd
