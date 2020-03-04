@@ -1192,3 +1192,73 @@
   - Open file references stored in process descriptor
   - Open file instance descriptors (unique to each process)
   - Processes can share an open fd
+  - Layout
+    - Super block (block 1) saves block size and num inodes (filesystem metadata)
+    - Inodes have metadata for individual files
+    - Data blocks start after inodes
+  - Scaling while keeping performance
+    - First 10 blocks point directly -> 40K bytes
+    - Block 11 points to indirect (stored in the data blocks) -> 4M bytes
+      - Must read indirect blocks
+    - Block 12 points to double indirect -> 4G bytes
+    - Block 13 points to triple indirect -> 4T bytes
+    - **Any block can be found in 3 or less reads**
+
+## Free space and allocation
+- File system are not static; users create, update, destroy files
+- Creating files
+  - Unix - search super block inode list and find first free
+  - DOS - search parent directory for unused directory entry
+  - Initialize properties and name file
+- Extending files
+  - Unix - Find free chunk from free list (and remove), link new space with the address in the file
+  - DOS - update FAT table
+- Deleting files
+  - Unix - return to free list, zero inode
+  - DOS - use garbage collector (will eventually be freed), zero first byte of name in parent directory
+
+## Flash storage
+- 
+
+## Caching
+- Read cache
+  - Disk I/O is slow
+  - Repeated reads to same parts of disk
+  - Read-ahead to predict sequential read
+- Write cache
+  - Aggregate small writes to cache, flush out to disk later
+  - Save on moot writes (rewriting same data, temp files)
+- Special caching for directories/inodes
+
+## Naming
+- File system handles name-to-file mapping
+- Within directory, must be unique names
+- Hierarchical namespace; leaf nodes are files, other nodes are directories
+- Directories
+  - Read only for user, updated by FS
+  - DOS - have true file names
+  - Unix - names separated by slashes, 
+
+## Links
+- Links provide same access to the file
+  - Need read access to create a link
+  - All links are equal
+- Deallocate file once there are no hard links to file
+  - Maintain reference count in inode
+- Symbolic links are a new file with pointer to the original file
+  - Does not add an edge to the graph
+
+## Reliability
+- Data loss
+- Corruption
+  - Invalid references
+  - Corrupted free list, directories, inodes
+- Queued writes not completed
+- Power failures
+  - Solution: non-volatile RAM, uninterrupted power supply
+- Ordered writes
+  - Write out data before writing to it
+  - Write out deallocations before allocations
+- Audit and repair
+  - Redundancy allows for audit for correctness
+  
