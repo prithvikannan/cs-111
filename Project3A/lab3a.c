@@ -1,29 +1,33 @@
+// NAME: Prithvi Kannan,Harsh Chobisa
+// EMAIL: prithvi.kannan@gmail.com,harshc4@gmail.com
+// ID: 405110096,505103854
+
 #define _XOPEN_SOURCE 500 // to get rid of compiler warnings
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
-#include "ext2_fs.h"
 #include <sys/types.h>
 #include <fcntl.h>
 #include <time.h>
 #include <stdint.h>
-#include <stdbool.h>
+#include "ext2_fs.h"
+
 
 int mountFd;
 
-const int SB_OFFSET = 1024;
-const int BYTE_ALIGN = 4;
-const int SIZE_OF_DATESTRING = 32;
+const int SB_OFFSET = 1024, BYTE_ALIGN = 4, SIZE_OF_DATESTRING = 32;
+const uint32_t BLOCK_POINTER_SIZE = 60, NUM_BLOCKS = 12;
 
 struct ext2_super_block sb;
 struct ext2_inode inode;
 struct ext2_group_desc group;
 struct ext2_dir_entry dir;
 
-uint32_t blockSize;
-uint32_t inodeSize;
+uint32_t blockSize, inodeSize, fileSize;
+char fileType;
 
 char *timeString(uint32_t time)
 {
@@ -45,15 +49,13 @@ void printDirectoryEntries(uint32_t start, uint32_t parentNum)
             exit(1);
         }
         uint32_t logicalOffset = curr - start;
-        uint32_t inodeNumber = dir.inode;
+        uint32_t inodeNum = dir.inode;
         uint32_t entryLength = dir.rec_len;
         curr += entryLength;
         uint32_t nameLength = dir.name_len;
-        if (!inodeNumber)
+        if (!inodeNum)
             continue;
-        fprintf(stdout, "DIRENT,%u,%u,%u,%u,%u,'", parentNum, logicalOffset, inodeNumber, entryLength, nameLength);
-        fprintf(stdout,"%s",  dir.name);
-        fprintf(stdout, "'\n");
+        fprintf(stdout, "DIRENT,%u,%u,%u,%u,%u,'%s'\n", parentNum, logicalOffset, inodeNum, entryLength, nameLength, dir.name);
     }
 }
 
@@ -62,16 +64,11 @@ void printInodeDirectorySummary(uint32_t offset, int num)
 
     // dL0
 
-    int ib;
-    int indir1;
-    int indir2;
-    int indir3;
+    int ib, indir1, indir2, indir3;
 
-    uint32_t j = 0;
-    uint32_t k = 0;
-    uint32_t m = 0;
+    uint32_t j = 0, k = 0, m = 0;
 
-    while (j < 12)
+    while (j < NUM_BLOCKS)
     {
         if (pread(mountFd, &ib, BYTE_ALIGN, offset + 40 + j * BYTE_ALIGN) < 0)
         {
@@ -141,7 +138,9 @@ void printInodeDirectorySummary(uint32_t offset, int num)
                     }
                     int curOffset = blockSize * ib;
                     if (ib)
+                    {
                         printDirectoryEntries(curOffset, num);
+                    }
                     j++;
                 }
             }
@@ -187,7 +186,9 @@ void printInodeDirectorySummary(uint32_t offset, int num)
                             }
                             int curOffset = blockSize * ib;
                             if (ib)
+                            {
                                 printDirectoryEntries(curOffset, num);
+                            }
                             j++;
                         }
                     }
@@ -199,11 +200,10 @@ void printInodeDirectorySummary(uint32_t offset, int num)
     }
 }
 
-void indirectSingle(uint32_t inodeNumber, uint32_t blockNumber)
+void indirectSingle(uint32_t inodeNum, uint32_t blockNumber)
 {
     uint32_t blockOffset = blockNumber * blockSize;
-    uint32_t blockValue;
-    uint32_t i = 0;
+    uint32_t blockValue, i = 0;
     while (i < blockSize / BYTE_ALIGN)
     {
         if (pread(mountFd, &blockValue, sizeof(blockValue), blockOffset + i * BYTE_ALIGN) < 0)
@@ -211,27 +211,30 @@ void indirectSingle(uint32_t inodeNumber, uint32_t blockNumber)
             fprintf(stderr, "Error: unable to pread\n");
             exit(1);
         }
-        if (blockValue != 0)
-            fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNumber, 1, 12 + i, blockNumber, blockValue);
+        if (blockValue)
+        {
+            fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNum, 1, NUM_BLOCKS + i, blockNumber, blockValue);
+        }
         i++;
     }
 }
-void indirectDouble(uint32_t inodeNumber, uint32_t blockNumberOfindirectDouble)
+
+void indirectDouble(uint32_t inodeNum, uint32_t blockNumberOfindirectDouble)
 {
-    uint32_t blockOffsetL1Indirect = blockNumberOfindirectDouble * blockSize, blockOffset;
-    uint32_t blockValueL1Indirect, blockValue;
+    uint32_t L1OffsetIndirect = blockNumberOfindirectDouble * blockSize;
+    uint32_t blockValueL1Indirect, blockValue, blockOffset;
     uint32_t i = 0, j = 0;
     while (i < blockSize / BYTE_ALIGN)
     {
-        if (pread(mountFd, &blockValueL1Indirect, sizeof(blockValue), blockOffsetL1Indirect + i * BYTE_ALIGN) < 0)
+        if (pread(mountFd, &blockValueL1Indirect, sizeof(blockValue), L1OffsetIndirect + i * BYTE_ALIGN) < 0)
         {
             fprintf(stderr, "Error: unable to pread\n");
             exit(1);
         }
         blockOffset = blockValueL1Indirect * blockSize;
-        if (blockValueL1Indirect != 0)
+        if (blockValueL1Indirect)
         {
-            fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNumber, 2, 12 + blockSize / BYTE_ALIGN + i * blockSize / BYTE_ALIGN, blockNumberOfindirectDouble, blockValueL1Indirect);
+            fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNum, 2, NUM_BLOCKS + blockSize / BYTE_ALIGN + i * blockSize / BYTE_ALIGN, blockNumberOfindirectDouble, blockValueL1Indirect);
             while (j < blockSize / BYTE_ALIGN)
             {
                 if (pread(mountFd, &blockValue, sizeof(blockValue), blockOffset + j * BYTE_ALIGN) < 0)
@@ -240,52 +243,54 @@ void indirectDouble(uint32_t inodeNumber, uint32_t blockNumberOfindirectDouble)
                     exit(1);
                 }
                 if (blockValue)
-                    fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNumber, 1, 12 + blockSize / BYTE_ALIGN + i * blockSize / BYTE_ALIGN + j, blockValueL1Indirect, blockValue);
+                {
+                    fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNum, 1, NUM_BLOCKS + blockSize / BYTE_ALIGN + i * blockSize / BYTE_ALIGN + j, blockValueL1Indirect, blockValue);
+                }
                 j++;
             }
         }
         i++;
     }
 }
-void indirectTriple(uint32_t inodeNumber, uint32_t blockNumberOfindirectTriple)
+void indirectTriple(uint32_t inodeNum, uint32_t blockNumberOfindirectTriple)
 {
-    uint32_t blockOffsetL3 = blockNumberOfindirectTriple * blockSize;
-    uint32_t blocksSeenThusFar = 12 + blockSize / BYTE_ALIGN + blockSize / BYTE_ALIGN * blockSize / BYTE_ALIGN;
+    uint32_t L3Offset = blockNumberOfindirectTriple * blockSize;
+    uint32_t blocksSeenThusFar = NUM_BLOCKS + blockSize / BYTE_ALIGN + blockSize / BYTE_ALIGN * blockSize / BYTE_ALIGN;
+    uint32_t L2Offset, L1Offset, blockNumberindirectDouble, blockNumberindirectSingle;
     uint32_t i = 0, j = 0, k = 0;
+
     while (i < blockSize / BYTE_ALIGN)
     {
-        uint32_t blockOffsetL2, blockNumberindirectDouble;
-        if (pread(mountFd, &blockNumberindirectDouble, sizeof(blockNumberindirectDouble), blockOffsetL3 + i * BYTE_ALIGN) < 0)
+        if (pread(mountFd, &blockNumberindirectDouble, sizeof(blockNumberindirectDouble), L3Offset + i * BYTE_ALIGN) < 0)
         {
             fprintf(stderr, "Error: unable to pread\n");
             exit(1);
         }
-        blockOffsetL2 = blockNumberindirectDouble * blockSize;
-        if (blockNumberindirectDouble != 0)
+        L2Offset = blockNumberindirectDouble * blockSize;
+        if (blockNumberindirectDouble)
         {
-            fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNumber, 3, blocksSeenThusFar + i * (blockSize * blockSize / 8), blockNumberOfindirectTriple, blockNumberindirectDouble);
+            fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNum, 3, blocksSeenThusFar + i * (blockSize * blockSize / 8), blockNumberOfindirectTriple, blockNumberindirectDouble);
             while (j < blockSize / BYTE_ALIGN)
             {
-                uint32_t blockOffsetL1, blockNumberindirectSingle;
-                if (pread(mountFd, &blockNumberindirectSingle, sizeof(blockNumberindirectSingle), blockOffsetL2 + j * BYTE_ALIGN) < 0)
+                if (pread(mountFd, &blockNumberindirectSingle, sizeof(blockNumberindirectSingle), L2Offset + j * BYTE_ALIGN) < 0)
                 {
                     fprintf(stderr, "Error: unable to pread\n");
                     exit(1);
                 }
-                blockOffsetL1 = blockNumberindirectSingle * blockSize;
-                if (blockNumberindirectSingle != 0)
+                L1Offset = blockNumberindirectSingle * blockSize;
+                if (blockNumberindirectSingle)
                 {
-                    fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNumber, 2, blocksSeenThusFar + i * (blockSize * blockSize / 8) + j * (blockSize / BYTE_ALIGN), blockNumberindirectDouble, blockNumberindirectSingle);
+                    fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNum, 2, blocksSeenThusFar + i * (blockSize * blockSize / 8) + j * (blockSize / BYTE_ALIGN), blockNumberindirectDouble, blockNumberindirectSingle);
                     while (k < blockSize / BYTE_ALIGN)
                     {
                         uint32_t dataBlockNumber;
-                        if (pread(mountFd, &dataBlockNumber, sizeof(dataBlockNumber), blockOffsetL1 + k * BYTE_ALIGN) < 0)
+                        if (pread(mountFd, &dataBlockNumber, sizeof(dataBlockNumber), L1Offset + k * BYTE_ALIGN) < 0)
                         {
                             fprintf(stderr, "Error: unable to pread\n");
                             exit(1);
                         }
-                        if (dataBlockNumber != 0)
-                            fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNumber, 1, blocksSeenThusFar + i * (blockSize * blockSize / 8) + j * (blockSize / BYTE_ALIGN) + k, blockNumberindirectSingle, dataBlockNumber);
+                        if (dataBlockNumber)
+                            fprintf(stdout, "INDIRECT,%u,%u,%u,%u,%u\n", inodeNum, 1, blocksSeenThusFar + i * (blockSize * blockSize / 8) + j * (blockSize / BYTE_ALIGN) + k, blockNumberindirectSingle, dataBlockNumber);
                         k++;
                     }
                 }
@@ -299,29 +304,29 @@ void indirectTriple(uint32_t inodeNumber, uint32_t blockNumberOfindirectTriple)
 void printInodeSummary(uint32_t firstBlockInode, uint32_t numInodes, uint32_t freeInodeBitmap)
 {
     uint32_t i = 0, j = 0;
-    char fileType = 0;
+    fileType = 0;
     while (i < numInodes)
     {
         int bit = i & 7;
-        unsigned char read;
-        if (pread(mountFd, &read, sizeof(uint8_t), freeInodeBitmap * blockSize + (uint8_t)(i >> 3)) < 0)
+        unsigned char readInput;
+        if (pread(mountFd, &readInput, sizeof(uint8_t), freeInodeBitmap * blockSize + (uint8_t)(i >> 3)) < 0)
         {
             fprintf(stderr, "Error: unable to pread\n");
             exit(1);
         }
-        if (!((read >> bit) & 1))
+        if (!((readInput >> bit) & 1))
         {
             i++;
             continue;
         }
 
-        if (pread(mountFd, &inode, inodeSize, 1024 + (firstBlockInode - 1) * (blockSize) + i * sizeof(struct ext2_inode)) < 0)
+        if (pread(mountFd, &inode, inodeSize, SB_OFFSET + (firstBlockInode - 1) * (blockSize) + i * sizeof(struct ext2_inode)) < 0)
         {
             fprintf(stderr, "Error: unable to pread\n");
             exit(1);
         }
 
-        if (inode.i_mode == 0 || inode.i_links_count == 0)
+        if (!(inode.i_mode) || !(inode.i_links_count))
         {
             i++;
             continue;
@@ -337,14 +342,14 @@ void printInodeSummary(uint32_t firstBlockInode, uint32_t numInodes, uint32_t fr
             break;
         case 0x4000:
             fileType = 'd';
-            printInodeDirectorySummary(1024 + (firstBlockInode - 1) * (blockSize) + i * sizeof(struct ext2_inode), i + 1);
+            printInodeDirectorySummary(SB_OFFSET + (firstBlockInode - 1) * (blockSize) + i * sizeof(struct ext2_inode), i + 1);
             break;
         }
 
-        uint32_t fileSize = inode.i_size;
+        fileSize = inode.i_size;
 
         fprintf(stdout, "INODE,%d,%c,%o,%u,%u,%u,%s,%s,%s,%d,%d", i + 1, fileType, (inode.i_mode & 0xFFF), inode.i_uid, inode.i_gid, inode.i_links_count, timeString(inode.i_ctime), timeString(inode.i_mtime), timeString(inode.i_atime), fileSize, inode.i_blocks);
-        if (!(fileType == 's' && fileSize < 60))
+        if (!(fileType == 's' && fileSize < BLOCK_POINTER_SIZE))
         {
             j = 0;
             while (j < 15)
@@ -361,14 +366,22 @@ void printInodeSummary(uint32_t firstBlockInode, uint32_t numInodes, uint32_t fr
 
         uint32_t inodeNum = i + 1;
 
-        if (!(fileType == 's' && fileSize < 60))
+        // handle indirects
+
+        if (!(fileType == 's' && fileSize < BLOCK_POINTER_SIZE))
         {
-            if (inode.i_block[12] != 0)
-                indirectSingle(inodeNum, inode.i_block[12]);
-            if (inode.i_block[13] != 0)
-                indirectDouble(inodeNum, inode.i_block[13]);
-            if (inode.i_block[14] != 0)
-                indirectTriple(inodeNum, inode.i_block[14]);
+            if (inode.i_block[NUM_BLOCKS])
+            {
+                indirectSingle(inodeNum, inode.i_block[NUM_BLOCKS]);
+            }
+            if (inode.i_block[NUM_BLOCKS + 1])
+            {
+                indirectDouble(inodeNum, inode.i_block[NUM_BLOCKS + 1]);
+            }
+            if (inode.i_block[NUM_BLOCKS + 2])
+            {
+                indirectTriple(inodeNum, inode.i_block[NUM_BLOCKS + 2]);
+            }
         }
         i++;
     }
@@ -381,13 +394,13 @@ void scanFreeEntries(bool isBitmap, uint32_t num, uint32_t freeMap)
     {
         int bit = i & 7;
         uint8_t byte = i >> 3;
-        unsigned char read;
-        if (pread(mountFd, &read, sizeof(uint8_t), freeMap * blockSize + byte) < 0)
+        unsigned char readInput;
+        if (pread(mountFd, &readInput, sizeof(uint8_t), freeMap * blockSize + byte) < 0)
         {
             fprintf(stderr, "Error: unable to pread\n");
             exit(1);
         }
-        if (!((read >> bit) & 1))
+        if (!((readInput >> bit) & 1))
         {
             if (isBitmap)
             {
@@ -445,7 +458,7 @@ int main(int argc, char **argv)
 
     scanFreeEntries(0, sb.s_inodes_count, group.bg_inode_bitmap);
 
-    // I-node summary
+    // I-node summary and indirects
 
     printInodeSummary(group.bg_inode_table, sb.s_inodes_count, group.bg_inode_bitmap);
 }
