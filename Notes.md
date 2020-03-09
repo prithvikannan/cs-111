@@ -1261,4 +1261,44 @@
   - Write out deallocations before allocations
 - Audit and repair
   - Redundancy allows for audit for correctness
-  
+  - Doesn't scale well
+- Journaling
+  - Circular buffer
+    - Sequential and batched writes (faster than data writes)
+    - Small and bounded so can use NVRAM
+  - How to select the ring size
+  - Write only normally (reads for crashes)
+  - Journal recovery
+    - Review journal and note which operations have not been completed
+    - Perform writes for not completed entries
+- Log structure
+  - Journal is the file ssytem
+  - Costs recovery time and defragmentation
+- Redirect on write
+
+# Security
+
+## Introduction
+- Flaws in OS compromise other layers of security
+- Security is a policy
+- Protection is a mechanism
+- Vulnerability is a weakness that allows an attacker to cause problems
+- Exploit is an incident of taking advantage of a vulnerability
+- Trust is given to sudo and OS
+  - Chain of trust
+- Authentication is proof of identity
+  - User ID
+  - Password
+    - Prompt user for password, compare to stored password
+    - Brute force attacks work
+    - Outdated but widely used
+    - Challenge/Response methods
+      - Hardware (RSA token)
+      - Usually too few pairs 
+    - Biometrics
+    - Multifactor authentication
+- Authorization is checking if party is allowed to do something
+  - Usually requires authentication
+  - Access control lists
+    - For each object maintian a list of all people who can access
+
