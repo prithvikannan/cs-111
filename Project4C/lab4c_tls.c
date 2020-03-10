@@ -2,7 +2,9 @@
 // EMAIL: prithvi.kannan@gmail.com
 // ID: 405110096
 
-#define _POSIX_C_SOURCE 200809 // to get rid of dprintf warnings
+#define _POSIX_C_SOURCE 200809                    // to get rid of dprintf warnings
+#define h_addr h_addr_list[0]                     // for backward compatibility
+#define bcopy(s1, s2, n) memmove((s2), (s1), (n)) // to get rid of bcopy warnings
 
 #include <unistd.h>
 #include <stdio.h>
@@ -13,10 +15,15 @@
 #include <poll.h>
 #include <time.h>
 #include <sys/time.h>
+#include <sys/socket.h>
 #include <ctype.h>
 #include <mraa.h>
 #include <mraa/aio.h>
 #include "fcntl.h"
+#include <netinet/in.h>
+#include <netdb.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
 
 #if DEV
 const int mraaFlag = 0;
@@ -31,15 +38,22 @@ const int BUFFER_SIZE = 128;
 
 int period = 1;
 char unit;
+char *hostname = NULL;
+char *id;
 
 struct pollfd myPoll[1];
 int fd;
 int shouldLog = 0;
 
 mraa_aio_context temperatureSensor;
-mraa_gpio_context button;
 
 int noReports = 0;
+
+int port;
+int socketFd = 0;
+struct sockaddr_in address;
+struct hostent *server;
+SSL *ssl;
 
 struct tm *getCurrentTime()
 {
@@ -72,7 +86,13 @@ void readInput(const char *input)
             dprintf(fd, "OFF\n");
         }
         struct tm *currTime = getCurrentTime();
-        fprintf(stdout, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
+        char sslBuf[BUFFER_SIZE];
+        sprintf(sslBuf, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
+        if (SSL_write(ssl, sslBuf, strlen(sslBuf)) < 0)
+        {
+            fprintf(stderr, "Error: unable to write with SSL\n");
+            exit(2);
+        }
         if (shouldLog)
         {
             dprintf(fd, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
@@ -108,14 +128,10 @@ void readInput(const char *input)
     }
     else if (!strncmp(input, "PERIOD=", sizeof(char) * 7))
     {
-        int newPeriod = atoi(input + 7);
-        period = newPeriod;
-        if (shouldLog)
+        period = (int)atoi(input + 7);
+        if (shouldLog && noReports == 0)
         {
-            if (noReports == 0)
-            {
-                dprintf(fd, "PERIOD=%d\n", period);
-            }
+            dprintf(fd, "PERIOD=%d\n", period);
         }
     }
     else if (!strncmp(input, "LOG", sizeof(char) * 3))
@@ -127,14 +143,15 @@ void readInput(const char *input)
     }
     else
     {
-        fprintf(stdout, "Error: invalid command\n");
+        fprintf(stderr, "Command not recognized\n");
         exit(1);
     }
 }
 
 void pollFunction()
 {
-    myPoll[0].fd = STDIN_FILENO;
+
+    myPoll[0].fd = socketFd;
     myPoll[0].events = POLLIN | POLLHUP | POLLERR;
 
     int position = 0;
@@ -150,11 +167,17 @@ void pollFunction()
         double tempValue = convertTemp(temperatureSensorValue);
         if (!noReports)
         {
+            char sslBuf[BUFFER_SIZE];
             struct tm *currTime = getCurrentTime();
-            fprintf(stdout, "%.2d:%.2d:%.2d %.1f\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec, tempValue);
+            sprintf(sslBuf, "%.2d:%.2d:%.2d %.1f\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec, tempValue);
+            if (SSL_write(ssl, sslBuf, strlen(sslBuf)) < 0)
+            {
+                fprintf(stderr, "Error: unable to write with SSL\n");
+                exit(2);
+            }
             if (shouldLog)
             {
-                if (noReports == 0)
+                if (!noReports)
                 {
                     dprintf(fd, "%.2d:%.2d:%.2d %.1f\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec, tempValue);
                 }
@@ -166,16 +189,6 @@ void pollFunction()
 
         while (difftime(endTime, startTime) < period)
         {
-            if (mraa_gpio_read(button))
-            {
-                struct tm *currTime = getCurrentTime();
-                fprintf(stdout, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
-                if (shouldLog)
-                {
-                    dprintf(fd, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
-                }
-                exit(0);
-            }
             int ret = poll(myPoll, 1, 0);
             if (ret < 0)
             {
@@ -184,7 +197,7 @@ void pollFunction()
             }
             if (myPoll[0].revents && POLLIN)
             {
-                int num = read(STDIN_FILENO, cmdBuf, BUFFER_SIZE);
+                int num = SSL_read(ssl, cmdBuf, BUFFER_SIZE);
                 if (num < 0)
                 {
                     fprintf(stderr, "Error: unable to read\n");
@@ -220,6 +233,8 @@ int main(int argc, char **argv)
         {"period", required_argument, 0, 'p'},
         {"scale", required_argument, 0, 's'},
         {"log", required_argument, 0, 'l'},
+        {"id", required_argument, 0, 'i'},
+        {"host", required_argument, 0, 'h'},
         {0, 0, 0, 0}};
 
     int param = 0;
@@ -238,7 +253,6 @@ int main(int argc, char **argv)
             if (period == 0)
             {
                 fprintf(stderr, "Error: period cannot be 0\n");
-                exit(1);
             }
             break;
         case 's':
@@ -252,48 +266,117 @@ int main(int argc, char **argv)
                 break;
             default:
                 fprintf(stderr, "Error: invalid option. Must be --scale=F or --scale=C\n");
-                exit(1);
                 break;
             }
             break;
         case 'l':
             shouldLog = 1;
-            char *fileName = optarg;
-            fd = creat(fileName, 0666);
+            fd = creat(optarg, 0666);
             if (fd < 0)
             {
                 fprintf(stderr, "Error: failed to create file\n");
-                exit(1);
             }
+            break;
+        case 'i':
+            if (strlen(optarg) != 9)
+            {
+                fprintf(stderr, "Error: id must be 9 digits long\n");
+            }
+            char *str = optarg;
+            while (*str != '\0')
+            {
+                if (*str < '0' || *str > '9')
+                {
+                    fprintf(stderr, "Error: id must be only numbers\n");
+                    exit(1);
+                }
+                str++;
+            }
+            id = optarg;
+            break;
+        case 'h':
+            hostname = optarg;
             break;
         default:
             fprintf(stderr, "Error: Incorrect argument! correct usage is ./lab4a --period=# [--scale=tempOpt] [--log=filename]\n");
-            exit(1);
             break;
         }
     }
 
+    port = atoi(*(argv + optind));
+    if (port <= 0)
+    {
+        fprintf(stderr, "Error: invalid port\n");
+        exit(1);
+    }
+
+    close(STDIN_FILENO);
+
+    socketFd = socket(AF_INET, SOCK_STREAM, 0);
+    if (socketFd < 0)
+    {
+        fprintf(stderr, "Error: unable to create socket\n");
+        exit(2);
+    }
+    server = gethostbyname(hostname);
+    if (!server)
+    {
+        fprintf(stderr, "Error: unable to get host\n");
+        exit(2);
+    }
+    memset((char *)&address, 0, sizeof(address));
+    address.sin_family = AF_INET;
+    bcopy((char *)server->h_addr, (char *)&address.sin_addr.s_addr, server->h_length);
+    address.sin_port = htons(port);
+    if (connect(socketFd, (struct sockaddr *)&address, sizeof(address)) < 0)
+    {
+        fprintf(stderr, "Error: unable to connect\n");
+        exit(2);
+    }
+
+    char sslBuf[64];
+    OpenSSL_add_all_algorithms();
+    if (SSL_library_init() < 0)
+    {
+        fprintf(stderr, "Error: unable to initialize SSL\n");
+        exit(2);
+    }
+    SSL_CTX *ssl_ctx = SSL_CTX_new(TLSv1_client_method());
+    if (!ssl_ctx)
+    {
+        fprintf(stderr, "Error: unable to create SSL context\n");
+        exit(2);
+    }
+    ssl = SSL_new(ssl_ctx);
+    if (SSL_set_fd(ssl, socketFd) < 0)
+    {
+        fprintf(stderr, "Error: unable to get fd for SSL\n");
+        exit(2);
+    }
+    if (SSL_connect(ssl) != 1)
+    {
+        fprintf(stderr, "Error: unable to connect SSL\n");
+        exit(2);
+    }
+    sprintf(sslBuf, "ID=%s\n", id);
+    if (SSL_write(ssl, sslBuf, strlen(sslBuf)) < 0)
+    {
+        fprintf(stderr, "Error: unable to write with SSL\n");
+        exit(2);
+    }
+    dprintf(fd, "ID=%s\n", id);
+
     temperatureSensor = mraa_aio_init(mraaFlag); // if this is dev environment use 0, for submission use 1
-    if (temperatureSensor == NULL)
+    if (!temperatureSensor)
     {
         fprintf(stderr, "Error: Unable to create temperature temperatureSensor\n");
         mraa_deinit();
         exit(1);
     }
 
-    button = mraa_gpio_init(60);
-    if (button == NULL)
-    {
-        fprintf(stderr, "Error: Unable to create button\n");
-        mraa_deinit();
-        exit(1);
-    }
-    mraa_gpio_dir(button, MRAA_GPIO_IN);
-
     pollFunction();
 
     mraa_aio_close(temperatureSensor);
-    mraa_gpio_close(button);
     close(fd);
     exit(0);
 }

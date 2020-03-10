@@ -1,0 +1,27 @@
+NAME: Prithvi Kannan
+EMAIL: prithvi.kannan@gmail.com
+ID: 405110096
+
+Project 4C
+In this project I extended my embedded temperature sensor to accept commands from, and send reports back to, a network server over both unencrypted and encrypted channels
+
+Resources:
+    https://www.tutorialspoint.com/c_standard_library/c_function_localtime.htm 
+    http://wiki.seeedstudio.com/Grove-Temperature_Sensor_V1.2/
+    https://github.com/GalenWong/beaglebone-with-mac
+
+Files included:
+    Makefile - containing targets to build (in dev and prod mode), run smoke tests, create tar and cleanup
+    smoketest.sh - set of tests to make sure the project is working
+    README - description of project
+    lab4c_tcp.c - C source files for an embedded application using TCP that builds and runs (with no errors or warnings) on an embedded system
+    lab4c_tls.c - C source files for an embedded application using TLS that builds and runs (with no errors or warnings) on an embedded system
+
+Notes:
+    I was having a hard time setting up the mraa libraries on my board. To solve my issue, I looked online and found a mraa install tutorial from Galen Wong (former CS111 student). Following his guidelines, I was able to install mraa. However, in the install, he notes that the spec says to do mraa_aio_init(1) but for it to work it should be mraa_aio_init(0). I have this setup by passing in a compiler flag DEV, which flips the variable in the code. I can invoke the development environment using `make dev` instead of `make prod`.
+    
+    My beaglebone runs version 9.5, but I have tested on another board with version 8.7.
+    
+Here are the commands I used to run my code:
+    ./lab4c_tcp --id=405110096 --host=lever.cs.ucla.edu --log=temp.txt 18000
+    ./lab4c_tls --id=405110096 --host=lever.cs.ucla.edu --log=temp.txt 19000

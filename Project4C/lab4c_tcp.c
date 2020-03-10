@@ -3,7 +3,8 @@
 // ID: 405110096
 
 #define _POSIX_C_SOURCE 200809 // to get rid of dprintf warnings
-#define h_addr h_addr_list[0]  /* for backward compatibility */
+#define h_addr h_addr_list[0] // for backward compatibility 
+#define bcopy(s1, s2, n) memmove((s2), (s1), (n)) // to get rid of bcopy warnings
 
 #include <unistd.h>
 #include <stdio.h>
@@ -31,8 +32,12 @@ const int mraaFlag = 1;
 const int BETA = 4275;
 const int R0 = 100000;
 
+const int BUFFER_SIZE = 128;
+
 int period = 1;
 char unit;
+char *hostname = NULL;
+char *id;
 
 struct pollfd myPoll[1];
 int fd;
@@ -42,80 +47,17 @@ mraa_aio_context temperatureSensor;
 
 int noReports = 0;
 
-int portNum;
+int port;
 int socketFd = 0;
 struct sockaddr_in address;
 struct hostent *server;
-char *hostname = NULL;
-char *idNum;
 
-void print_errors(char *error)
-{
-    if (strcmp(error, "temp") == 0)
-    {
-        fprintf(stderr, "Failed to initialize temperature sensor\n");
-        mraa_deinit();
-        exit(1);
-    }
-    if (strcmp(error, "usage") == 0)
-    {
-        fprintf(stderr, "Incorrect argument: correct usage is ./lab4a --period=# [--scale=tempOpt] [--log=filename]\n");
-        exit(1);
-    }
-    if (strcmp(error, "file") == 0)
-    {
-        fprintf(stderr, "Failed to create file\n");
-        exit(2);
-    }
-    if (strcmp(error, "poll") == 0)
-    {
-        fprintf(stderr, "Failed to poll\n");
-        exit(2);
-    }
-    if (strcmp(error, "read") == 0)
-    {
-        fprintf(stderr, "Failed to read\n");
-        exit(2);
-    }
-    if (strcmp(error, "period") == 0)
-    {
-        fprintf(stderr, "Period of 0 is not legal\n");
-        exit(1);
-    }
-    if (strcmp(error, "socket") == 0)
-    {
-        fprintf(stderr, "Error creating socket\n");
-        exit(2);
-    }
-    if (strcmp(error, "connection") == 0)
-    {
-        fprintf(stderr, "Error establishing connection to server\n");
-        exit(2);
-    }
-    if (strcmp(error, "id_length") == 0)
-    {
-        fprintf(stderr, "ID length is not 9. Inavlid ID\n");
-        exit(1);
-    }
-    if (strcmp(error, "host") == 0)
-    {
-        fprintf(stderr, "failed to get host name\n");
-        exit(1);
-    }
-}
-
-void create_report(double temp)
+struct tm *getCurrentTime()
 {
     time_t raw;
-    struct tm *currTime;
     time(&raw);
-    currTime = localtime(&raw);
-    dprintf(socketFd, "%.2d:%.2d:%.2d %.1f\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec, temp);
-    if (shouldLog && noReports == 0)
-    {
-        dprintf(fd, "%.2d:%.2d:%.2d %.1f\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec, temp);
-    }
-} //help with time from https://www.tutorialspoint.com/c_standard_library/c_function_localtime.htm
+    return localtime(&raw);
+}
 
 double convertTemp(int temperatureSensorInput)
 {
@@ -132,32 +74,6 @@ double convertTemp(int temperatureSensorInput)
     }
 }
 
-void handle_scale(char scale)
-{
-    switch (scale)
-    {
-    case 'C':
-    case 'c':
-        unit = 'C';
-        if (shouldLog && noReports == 0)
-        {
-            dprintf(fd, "SCALE=C\n");
-        }
-        break;
-    case 'F':
-    case 'f':
-        unit = 'F';
-        if (shouldLog && noReports == 0)
-        {
-            dprintf(fd, "SCALE=F\n");
-        }
-        break;
-    default:
-        fprintf(stderr, "Incorrect scale option");
-        break;
-    }
-}
-
 void readInput(const char *input)
 {
     if (!strcmp(input, "OFF"))
@@ -166,10 +82,7 @@ void readInput(const char *input)
         {
             dprintf(fd, "OFF\n");
         }
-        time_t raw;
-        struct tm *currTime;
-        time(&raw);
-        currTime = localtime(&raw);
+        struct tm *currTime = getCurrentTime();
         dprintf(socketFd, "%.2d:%.2d:%.2d SHUTDOWN\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec);
         if (shouldLog)
         {
@@ -193,20 +106,15 @@ void readInput(const char *input)
             dprintf(fd, "STOP\n");
         }
     }
-    else if (!strcmp(input, "SCALE=F"))
+    else if (!strncmp(input, "SCALE=", sizeof(char) * 6))
     {
-        unit = 'F';
-        if (shouldLog && noReports == 0)
+        unit = input[6];
+        if (shouldLog)
         {
-            dprintf(fd, "SCALE=F\n");
-        }
-    }
-    else if (!strcmp(input, "SCALE=C"))
-    {
-        unit = 'C';
-        if (shouldLog && noReports == 0)
-        {
-            dprintf(fd, "SCALE=C\n");
+            if (noReports == 0)
+            {
+                dprintf(fd, "SCALE=%c\n", unit);
+            }
         }
     }
     else if (!strncmp(input, "PERIOD=", sizeof(char) * 7))
@@ -231,163 +139,199 @@ void readInput(const char *input)
     }
 }
 
-void setupPollandTime()
+void pollFunction()
 {
-    char commandBuff[128];
-    char copyBuff[128];
-    memset(commandBuff, 0, 128);
-    memset(copyBuff, 0, 128);
-    int copyIndex = 0;
+
     myPoll[0].fd = socketFd;
-    myPoll[0].events = POLLIN | POLLERR | POLLHUP;
-    for (;;)
+    myPoll[0].events = POLLIN | POLLHUP | POLLERR;
+
+    int position = 0;
+
+    char cmdBuf[BUFFER_SIZE];
+    char inputBuf[BUFFER_SIZE];
+    memset(cmdBuf, 0, BUFFER_SIZE);
+    memset(inputBuf, 0, BUFFER_SIZE);
+
+    while (1)
     {
-        int value = mraa_aio_read(temperatureSensor);
-        double tempValue = convertTemp(value);
+        int temperatureSensorValue = mraa_aio_read(temperatureSensor);
+        double tempValue = convertTemp(temperatureSensorValue);
         if (!noReports)
         {
-            create_report(tempValue);
+            struct tm *currTime = getCurrentTime();
+            dprintf(socketFd, "%.2d:%.2d:%.2d %.1f\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec, tempValue);
+            if (shouldLog)
+            {
+                if (!noReports)
+                {
+                    dprintf(fd, "%.2d:%.2d:%.2d %.1f\n", currTime->tm_hour, currTime->tm_min, currTime->tm_sec, tempValue);
+                }
+            }
         }
-        time_t begin, end;
-        time(&begin);
-        time(&end); //start begin and end at the same time and keep running loop until period is reached
-        while (difftime(end, begin) < period)
+        time_t startTime, endTime;
+        time(&startTime);
+        time(&endTime);
+
+        while (difftime(endTime, startTime) < period)
         {
             int ret = poll(myPoll, 1, 0);
             if (ret < 0)
             {
-                print_errors("poll");
+                fprintf(stderr, "Error: failed to poll\n");
+                exit(1);
             }
             if (myPoll[0].revents && POLLIN)
             {
-                int num = read(socketFd, commandBuff, 128);
+                int num = read(socketFd, cmdBuf, BUFFER_SIZE);
                 if (num < 0)
                 {
-                    print_errors("read");
+                    fprintf(stderr, "Error: unable to read\n");
+                    exit(1);
                 }
                 int i;
-                for (i = 0; i < num && copyIndex < 128; i++)
+                i = 0;
+                while (i < num && position < BUFFER_SIZE)
                 {
-                    if (commandBuff[i] == '\n')
+                    switch (cmdBuf[i])
                     {
-                        readInput((char *)&copyBuff);
-                        copyIndex = 0;
-                        memset(copyBuff, 0, 128); //clear
+                    case '\n':
+                        readInput((char *)&inputBuf);
+                        position = 0;
+                        memset(inputBuf, 0, BUFFER_SIZE);
+                        break;
+                    default:
+                        inputBuf[position] = cmdBuf[i];
+                        position = position + 1;
+                        break;
                     }
-                    else
-                    {
-                        copyBuff[copyIndex] = commandBuff[i];
-                        copyIndex++;
-                    }
+                    i++;
                 }
             }
-            time(&end);
+            time(&endTime);
         }
     }
-} //help with time https://www.tutorialspoint.com/c_standard_library/c_function_time.htm
+}
 
 int main(int argc, char **argv)
 {
-    int opt = 0;
-    static struct option options[] = {
-        {"period", 1, 0, 'p'},
-        {"scale", 1, 0, 's'},
-        {"log", 1, 0, 'l'},
-        {"id", 1, 0, 'i'},
-        {"host", 1, 0, 'h'},
+    static struct option args[] = {
+        {"period", required_argument, 0, 'p'},
+        {"scale", required_argument, 0, 's'},
+        {"log", required_argument, 0, 'l'},
+        {"id", required_argument, 0, 'i'},
+        {"host", required_argument, 0, 'h'},
         {0, 0, 0, 0}};
 
-    while ((opt = getopt_long(argc, argv, "p:sl", options, NULL)) != -1)
+    int param = 0;
+    unit = 'F';
+    while (1)
     {
-        switch (opt)
+        param = getopt_long(argc, argv, "p:sl", args, NULL);
+        if (param == -1)
+        {
+            break;
+        }
+        switch (param)
         {
         case 'p':
             period = (int)atoi(optarg);
             if (period == 0)
             {
-                print_errors("period");
+                fprintf(stderr, "Error: period cannot be 0\n");
             }
             break;
         case 's':
-            switch (*optarg)
+            switch (optarg[0])
             {
             case 'C':
-            case 'c':
                 unit = 'C';
                 break;
             case 'F':
-            case 'f':
                 unit = 'F';
                 break;
             default:
-                print_errors("usage");
+                fprintf(stderr, "Error: invalid option. Must be --scale=F or --scale=C\n");
                 break;
             }
             break;
         case 'l':
             shouldLog = 1;
-            char *logFile = optarg;
-            fd = creat(logFile, 0666);
+            fd = creat(optarg, 0666);
             if (fd < 0)
             {
-                print_errors("file");
+                fprintf(stderr, "Error: failed to create file\n");
             }
             break;
         case 'i':
             if (strlen(optarg) != 9)
             {
-                print_errors("id_length");
+                fprintf(stderr, "Error: id must be 9 digits long\n");
             }
-            idNum = optarg;
+            char *str = optarg;
+            while (*str != '\0')
+            {
+                if (*str < '0' || *str > '9')
+                {
+                    fprintf(stderr, "Error: id must be only numbers\n");
+                    exit(1);
+                }
+                str++;
+            }
+            id = optarg;
             break;
         case 'h':
             hostname = optarg;
             break;
         default:
-            print_errors("usage");
+            fprintf(stderr, "Error: Incorrect argument! correct usage is ./lab4a --period=# [--scale=tempOpt] [--log=filename]\n");
             break;
         }
     }
-    portNum = atoi(argv[optind]);
-    if (portNum <= 0)
+
+    port = atoi(*(argv + optind));
+    if (port <= 0)
     {
-        fprintf(stderr, "Invalid port number\n");
+        fprintf(stderr, "Error: invalid port\n");
         exit(1);
     }
-    close(STDIN_FILENO); //close input
+
+    close(STDIN_FILENO);
 
     socketFd = socket(AF_INET, SOCK_STREAM, 0);
     if (socketFd < 0)
     {
-        print_errors("socket");
+        fprintf(stderr, "Error: unable to create socket\n");
+        exit(2);
     }
     server = gethostbyname(hostname);
-    if (server == NULL)
+    if (!server)
     {
-        print_errors("host");
-    } //check if hostname is retrieved
+        fprintf(stderr, "Error: unable to get host\n");
+        exit(2);
+    }
     memset((char *)&address, 0, sizeof(address));
     address.sin_family = AF_INET;
     bcopy((char *)server->h_addr, (char *)&address.sin_addr.s_addr, server->h_length);
-    address.sin_port = htons(portNum);
+    address.sin_port = htons(port);
     if (connect(socketFd, (struct sockaddr *)&address, sizeof(address)) < 0)
     {
-        print_errors("connection");
+        fprintf(stderr, "Error: unable to connect\n");
+        exit(2);
     }
-    dprintf(socketFd, "ID=%s\n", idNum);
-    dprintf(fd, "ID=%s\n", idNum);
+    dprintf(socketFd, "ID=%s\n", id);
+    dprintf(fd, "ID=%s\n", id);
 
-    temperatureSensor = mraa_aio_init(0);
+    temperatureSensor = mraa_aio_init(mraaFlag); // if this is dev environment use 0, for submission use 1
     if (temperatureSensor == NULL)
     {
-        print_errors("temp");
+        fprintf(stderr, "Error: Unable to create temperature temperatureSensor\n");
+        mraa_deinit();
+        exit(1);
     }
 
-    setupPollandTime();
+    pollFunction();
 
     mraa_aio_close(temperatureSensor);
     close(fd);
-
     exit(0);
 }
-//button is no longer used as a method of shutdown
