@@ -283,7 +283,8 @@ int main(int argc, char **argv)
             hostname = optarg;
             break;
         default:
-            fprintf(stderr, "Error: Incorrect argument! correct usage is ./lab4a --period=# [--scale=tempOpt] [--log=filename]\n");
+            fprintf(stderr, "Error: Incorrect argument! correct usage is ./lab4c --period=# [--scale=tempOpt] [--log=filename]\n");
+            exit(1);
             break;
         }
     }

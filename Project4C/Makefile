@@ -4,7 +4,7 @@
 
 .SILENT:
 
-default: dev
+default: prod
 
 prod:
 	gcc -std=c99 -g -Wall -Wextra -lmraa lab4c_tcp.c -o lab4c_tcp -lm

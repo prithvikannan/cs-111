@@ -298,7 +298,8 @@ int main(int argc, char **argv)
             hostname = optarg;
             break;
         default:
-            fprintf(stderr, "Error: Incorrect argument! correct usage is ./lab4a --period=# [--scale=tempOpt] [--log=filename]\n");
+            fprintf(stderr, "Error: Incorrect argument! correct usage is ./lab4c --period=# [--scale=tempOpt] [--log=filename]\n");
+            exit(1);
             break;
         }
     }
@@ -341,7 +342,7 @@ int main(int argc, char **argv)
         fprintf(stderr, "Error: unable to initialize SSL\n");
         exit(2);
     }
-    SSL_CTX *ssl_ctx = SSL_CTX_new(TLSv1_client_method());
+    SSL_CTX *ssl_ctx = SSL_CTX_new(TLS_client_method());
     if (!ssl_ctx)
     {
         fprintf(stderr, "Error: unable to create SSL context\n");

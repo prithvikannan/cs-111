@@ -1,38 +1,37 @@
 ID=405110096
-04:28:29 66.5
-LOG 03/09/20 21:28:29: session started, ID=405110096
-04:28:30 66.4
-04:28:31 66.1
-04:28:32 66.5
+04:38:13 -459.7
+LOG 03/16/20 21:38:13: session started, ID=405110096
+LOG report value: implausibly low
+04:38:14 -459.7
+LOG report value: implausibly low
+04:38:15 -459.7
 START
-04:28:33 66.4
-04:28:34 66.5
-04:28:35 66.4
-04:28:36 66.5
-04:28:37 66.5
-04:28:38 66.5
-04:28:39 66.5
-04:28:40 66.5
-04:28:41 66.5
-04:28:42 66.5
-04:28:43 66.1
+LOG report value: implausibly low
+04:38:16 -459.7
+LOG report value: implausibly low
+04:38:17 -459.7
+LOG report value: implausibly low
+04:38:18 -459.7
+LOG report value: implausibly low
+04:38:19 -459.7
+LOG report value: implausibly low
+04:38:20 -459.7
+LOG report value: implausibly low
+04:38:21 -459.7
+LOG report value: implausibly low
+04:38:22 -459.7
+LOG report value: implausibly low
+04:38:23 -459.7
+LOG report value: implausibly low
+04:38:24 -459.7
+LOG report value: implausibly low
+04:38:25 -459.7
+LOG report value: implausibly low
+04:38:26 -459.7
+LOG report value: implausibly low
+04:38:27 -459.7
 PERIOD=7
+LOG report value: implausibly low
 SCALE=C
-04:28:50 19.1
-04:28:57 19.2
-SCALE=F
-04:29:04 66.5
-04:29:11 66.5
-PERIOD=3
-04:29:14 66.0
-04:29:17 66.1
-04:29:20 66.5
-04:29:23 66.1
-04:29:26 66.5
-04:29:29 66.2
-04:29:32 66.7
-04:29:35 66.2
-04:29:38 66.2
-STOP
-OFF
-04:29:40 SHUTDOWN
+04:38:34 -273.1
+LOG report value: implausibly low
