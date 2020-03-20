@@ -62,7 +62,7 @@ struct tm *getCurrentTime()
 double convertTemp(int temperatureSensorInput)
 {
     double temp = 1023.0 / (double)temperatureSensorInput - 1.0;
-    temp *= R0;
+    temp = temp * R0;
     float temperature = 1.0 / (log(temp / R0) / BETA + 1 / 298.15) - 273.15;
     if (unit == 'C')
     {
@@ -174,8 +174,7 @@ void pollFunction()
 
         while (difftime(endTime, startTime) < period)
         {
-            int ret = poll(myPoll, 1, 0);
-            if (ret < 0)
+            if (poll(myPoll, 1, 0) < 0)
             {
                 fprintf(stderr, "Error: failed to poll\n");
                 exit(1);

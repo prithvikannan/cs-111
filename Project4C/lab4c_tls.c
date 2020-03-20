@@ -189,8 +189,7 @@ void pollFunction()
 
         while (difftime(endTime, startTime) < period)
         {
-            int ret = poll(myPoll, 1, 0);
-            if (ret < 0)
+            if (poll(myPoll, 1, 0) < 0)
             {
                 fprintf(stderr, "Error: failed to poll\n");
                 exit(1);
