@@ -2,8 +2,8 @@
 // EMAIL: prithvi.kannan@gmail.com
 // ID: 405110096
 
-#define _POSIX_C_SOURCE 200809 // to get rid of dprintf warnings
-#define h_addr h_addr_list[0] // for backward compatibility 
+#define _POSIX_C_SOURCE 200809                    // to get rid of dprintf warnings
+#define h_addr h_addr_list[0]                     // for backward compatibility
 #define bcopy(s1, s2, n) memmove((s2), (s1), (n)) // to get rid of bcopy warnings
 
 #include <unistd.h>
@@ -23,6 +23,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
+// compiler flag to test if set environment
 #if DEV
 const int mraaFlag = 0;
 #else
@@ -52,6 +53,7 @@ int socketFd = 0;
 struct sockaddr_in address;
 struct hostent *server;
 
+// helper function for getting time
 struct tm *getCurrentTime()
 {
     time_t raw;
@@ -59,6 +61,7 @@ struct tm *getCurrentTime()
     return localtime(&raw);
 }
 
+// helper function for converting temp
 double convertTemp(int temperatureSensorInput)
 {
     double temp = 1023.0 / (double)temperatureSensorInput - 1.0;
@@ -74,6 +77,7 @@ double convertTemp(int temperatureSensorInput)
     }
 }
 
+// process input
 void readInput(const char *input)
 {
     if (!strcmp(input, "OFF"))
@@ -139,6 +143,7 @@ void readInput(const char *input)
     }
 }
 
+// poll file descriptors indefinitely
 void pollFunction()
 {
 
@@ -213,6 +218,7 @@ void pollFunction()
 
 int main(int argc, char **argv)
 {
+
     static struct option args[] = {
         {"period", required_argument, 0, 'p'},
         {"scale", required_argument, 0, 's'},
@@ -223,6 +229,8 @@ int main(int argc, char **argv)
 
     int param = 0;
     unit = 'F';
+
+    // process inputs args
     while (1)
     {
         param = getopt_long(argc, argv, "p:sl", args, NULL);
@@ -288,6 +296,7 @@ int main(int argc, char **argv)
         }
     }
 
+    // get port from command line
     port = atoi(*(argv + optind));
     if (port <= 0)
     {
@@ -297,6 +306,7 @@ int main(int argc, char **argv)
 
     close(STDIN_FILENO);
 
+    // make socket
     socketFd = socket(AF_INET, SOCK_STREAM, 0);
     if (socketFd < 0)
     {

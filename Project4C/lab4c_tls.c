@@ -25,6 +25,7 @@
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 
+// compiler flag to test if set environment 
 #if DEV
 const int mraaFlag = 0;
 #else
@@ -55,6 +56,7 @@ struct sockaddr_in address;
 struct hostent *server;
 SSL *ssl;
 
+// helper function for getting time
 struct tm *getCurrentTime()
 {
     time_t raw;
@@ -62,6 +64,7 @@ struct tm *getCurrentTime()
     return localtime(&raw);
 }
 
+// helper function for converting temp
 double convertTemp(int temperatureSensorInput)
 {
     double temp = 1023.0 / (double)temperatureSensorInput - 1.0;
@@ -77,6 +80,7 @@ double convertTemp(int temperatureSensorInput)
     }
 }
 
+// process input
 void readInput(const char *input)
 {
     if (!strcmp(input, "OFF"))
@@ -148,6 +152,7 @@ void readInput(const char *input)
     }
 }
 
+// poll file descriptors indefinitely
 void pollFunction()
 {
 
@@ -238,6 +243,8 @@ int main(int argc, char **argv)
 
     int param = 0;
     unit = 'F';
+
+    // process inputs args
     while (1)
     {
         param = getopt_long(argc, argv, "p:sl", args, NULL);
@@ -303,6 +310,7 @@ int main(int argc, char **argv)
         }
     }
 
+    // get port from command line
     port = atoi(*(argv + optind));
     if (port <= 0)
     {
@@ -312,6 +320,7 @@ int main(int argc, char **argv)
 
     close(STDIN_FILENO);
 
+    // make socket
     socketFd = socket(AF_INET, SOCK_STREAM, 0);
     if (socketFd < 0)
     {
@@ -334,6 +343,7 @@ int main(int argc, char **argv)
         exit(2);
     }
 
+    // SSL setup
     char sslBuf[64];
     OpenSSL_add_all_algorithms();
     if (SSL_library_init() < 0)
